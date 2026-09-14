@@ -1,0 +1,2644 @@
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>Financial Plan</title>
+	<base href="/">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+	<meta http-equiv="Pragma" content="no-cache">
+	<link rel="icon" type="image/x-icon" href="assets/img/icon/Logo_Dark_Favicon@5x.ico">
+	<link rel="stylesheet" href="styles.45d2f8f8f1f0e0df4313.css">
+	<style type="text/css">
+		.im-caret {
+			-webkit-animation: 1s blink step-end infinite;
+			animation: 1s blink step-end infinite;
+		}
+
+		@keyframes blink {
+
+			from,
+			to {
+				border-right-color: black;
+			}
+
+			50% {
+				border-right-color: transparent;
+			}
+		}
+
+		@-webkit-keyframes blink {
+
+			from,
+			to {
+				border-right-color: black;
+			}
+
+			50% {
+				border-right-color: transparent;
+			}
+		}
+
+		.im-static {
+			color: grey;
+		}
+	</style>
+	<style type="text/css">
+		/* Chart.js */
+		@-webkit-keyframes chartjs-render-animation {
+			from {
+				opacity: 0.99
+			}
+
+			to {
+				opacity: 1
+			}
+		}
+
+		@keyframes chartjs-render-animation {
+			from {
+				opacity: 0.99
+			}
+
+			to {
+				opacity: 1
+			}
+		}
+
+		.chartjs-render-monitor {
+			-webkit-animation: chartjs-render-animation 0.001s;
+			animation: chartjs-render-animation 0.001s;
+		}
+	</style>
+	<style>
+		.m-grid[_ngcontent-c0] {
+			height: 100%
+		}
+
+		#loading[_ngcontent-c0] {
+			display: none
+		}
+
+		.box-loading[_ngcontent-c0] {
+			top: 0;
+			position: fixed;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, .3);
+			z-index: 10000
+		}
+
+		.spin[_ngcontent-c0] {
+			display: inline-block;
+			position: relative;
+			width: 64px;
+			height: 64px;
+			top: calc(45% - 32px);
+			left: calc(50% - 32px)
+		}
+
+		.spin[_ngcontent-c0] div[_ngcontent-c0] {
+			display: inline-block;
+			position: absolute;
+			left: 6px;
+			width: 13px;
+			background: #fff;
+			-webkit-animation: 1.2s cubic-bezier(0, .5, .5, 1) infinite spin;
+			animation: 1.2s cubic-bezier(0, .5, .5, 1) infinite spin
+		}
+
+		.spin[_ngcontent-c0] div[_ngcontent-c0]:nth-child(1) {
+			left: 6px;
+			-webkit-animation-delay: -.24s;
+			animation-delay: -.24s
+		}
+
+		.spin[_ngcontent-c0] div[_ngcontent-c0]:nth-child(2) {
+			left: 26px;
+			-webkit-animation-delay: -.12s;
+			animation-delay: -.12s
+		}
+
+		.spin[_ngcontent-c0] div[_ngcontent-c0]:nth-child(3) {
+			left: 45px;
+			-webkit-animation-delay: 0;
+			animation-delay: 0
+		}
+
+		@keyframes spin {
+			0% {
+				top: 6px;
+				height: 51px
+			}
+
+			100%,
+			50% {
+				top: 19px;
+				height: 26px
+			}
+		}
+
+		@-webkit-keyframes spin {
+			0% {
+				top: 6px;
+				height: 51px
+			}
+
+			100%,
+			50% {
+				top: 19px;
+				height: 26px
+			}
+		}
+	</style>
+	<script charset="utf-8" src="1.239f706fe7ec2b3d9359.js"></script>
+	<script charset="utf-8" src="2.b263e0469afdd58b916b.js"></script>
+	<script charset="utf-8" src="3.d5ee25e8aaf6eeb92ef4.js"></script>
+	<script charset="utf-8" src="4.fb9c6c2a27195a3f8503.js"></script>
+	<script charset="utf-8" src="5.4c15e95474c781368b1c.js"></script>
+	<script charset="utf-8" src="6.8ab4b7045a41aeea528a.js"></script>
+	<script charset="utf-8" src="common.a50ddf5044b3b93da142.js"></script>
+	<script charset="utf-8" src="13.a6a036a0b0345abf71f2.js"></script>
+	<style>
+		.m-grid__item.m-header[_ngcontent-c1] {
+			z-index: 1002
+		}
+
+		@media (max-width:992px) {
+			.m-grid__item.m-header[_ngcontent-c1] {
+				z-index: 1003
+			}
+		}
+
+		#m_header_nav[_ngcontent-c1] {
+			box-shadow: 0 1px 15px 1px rgba(69, 65, 78, .1)
+		}
+
+		.profile-name[_ngcontent-c1] a[_ngcontent-c1] {
+			color: #575962;
+			font-weight: 700
+		}
+
+		.avt-user[_ngcontent-c1] {
+			position: relative
+		}
+
+		.avt-user[_ngcontent-c1] .avt-user__online[_ngcontent-c1] {
+			width: 12px;
+			height: 12px;
+			position: absolute;
+			border-radius: 50%;
+			right: -2px;
+			top: 7px
+		}
+
+		.m-dropdown__header[_ngcontent-c1] {
+			background: #c1c1c1
+		}
+
+		.m-nav__item[_ngcontent-c1] a[_ngcontent-c1] {
+			margin-left: 5px;
+			font-family: OpenSans-Regular
+		}
+
+		.m_btn_header[_ngcontent-c1] {
+			padding: .55rem 1.5rem
+		}
+
+		.m-dropdown.m-dropdown--header-bg-fill[_ngcontent-c1] .m-dropdown__header[_ngcontent-c1] {
+			background: #fff
+		}
+
+		.m-dropdown[_ngcontent-c1] .m-dropdown__wrapper[_ngcontent-c1] .m-dropdown__body[_ngcontent-c1] {
+			background: #fff;
+			border-top: 1px solid #ebedf2
+		}
+
+		.m-card-user.m-card-user--skin-dark[_ngcontent-c1] .m-card-user__details[_ngcontent-c1] .m-card-user__name[_ngcontent-c1] {
+			color: #212529
+		}
+
+		.m-card-user__email[_ngcontent-c1] {
+			color: #212529 !important
+		}
+
+		.m-brand__logo-wrapper[_ngcontent-c1] img[_ngcontent-c1] {
+			width: 160px
+		}
+
+		.m-brand.transition[_ngcontent-c1] {
+			transition: width .5s
+		}
+	</style>
+	<style>
+		.m-grid__item[_ngcontent-c2] {
+			height: 100%;
+			overflow-y: auto;
+			overflow-x: hidden
+		}
+
+		.m-aside-left.transition[_ngcontent-c2] {
+			transition: .5s
+		}
+
+		.hidden-child[_ngcontent-c2] {
+			max-height: 0 !important;
+			transition: max-height .15s ease-out !important;
+			overflow: hidden
+		}
+
+		.parent-selected[_ngcontent-c2] {
+			background-color: rgba(255, 255, 255, .2);
+			border-radius: 4px
+		}
+
+		.t-menu-icon[_ngcontent-c2] {
+			width: 17px;
+			height: 17px
+		}
+
+		.m-aside-left--minimize[_ngcontent-c2] .m-aside-menu[_ngcontent-c2] .m-menu__nav[_ngcontent-c2] {
+			display: flex
+		}
+
+		@media screen and (max-width:992px) {
+			.m-aside-left[_ngcontent-c2] {
+				margin-top: 60px
+			}
+		}
+
+		.path-name[_ngcontent-c2] {
+			text-overflow: hidden;
+			white-space: nowrap
+		}
+	</style>
+	<style></style>
+	<style>
+		.payment-item-form[_ngcontent-c4] {
+			padding: 10px 25px
+		}
+
+		.m-datatable.m-datatable--default.payment-item-table[_ngcontent-c4]>.m-datatable__table[_ngcontent-c4]>.m-datatable__body[_ngcontent-c4] .m-datatable__row[_ngcontent-c4]>.m-datatable__cell[_ngcontent-c4],
+		.m-datatable.m-datatable--default.payment-item-table[_ngcontent-c4]>.m-datatable__table[_ngcontent-c4]>.m-datatable__head[_ngcontent-c4] .m-datatable__row[_ngcontent-c4]>.m-datatable__cell[_ngcontent-c4] {
+			padding: 5px
+		}
+
+		.total-amount[_ngcontent-c4] {
+			margin-bottom: 15px;
+			display: flex;
+			flex-direction: row;
+			align-content: center
+		}
+
+		.total-amount__label[_ngcontent-c4] {
+			line-height: 40px;
+			font-size: 18px;
+			font-weight: 800
+		}
+
+		.total-amount__value[_ngcontent-c4] {
+			padding: 0 10px;
+			line-height: 40px;
+			font-size: 18px;
+			font-weight: 800
+		}
+
+		.fa.fa-plus[_ngcontent-c4] {
+			font-size: 14px !important
+		}
+
+		.m-datatable__cell.quantity[_ngcontent-c4] {
+			width: 150px
+		}
+
+		.status[_ngcontent-c4] {
+			margin-bottom: 30px
+		}
+
+		.status__lasted[_ngcontent-c4] {
+			color: #fff;
+			background-color: #2a82fe;
+			padding: 5px 10px;
+			border-radius: 4px;
+			font-weight: 700
+		}
+
+		.status__date[_ngcontent-c4] {
+			font-size: 14px;
+			font-weight: 600;
+			color: #575962
+		}
+
+		.status__next[_ngcontent-c4] {
+			background-color: #6da222;
+			color: #fff;
+			padding: 8px 18px;
+			border-radius: .25rem;
+			margin-right: 15px;
+			cursor: pointer
+		}
+
+		.add-payment[_ngcontent-c4] {
+			flex: auto
+		}
+
+		.m-datatable__cell[_ngcontent-c4] {
+			padding: 16px 10px !important
+		}
+
+		table[_ngcontent-c4] .cell-head-note[_ngcontent-c4] {
+			min-width: 20vw
+		}
+
+		table[_ngcontent-c4] .cell-white-space-nowrap[_ngcontent-c4] {
+			white-space: nowrap
+		}
+
+		.item-status[_ngcontent-c4] {
+			text-align: center;
+			white-space: nowrap;
+			padding: 4px 10px;
+			border-radius: 100px;
+			font-size: 13px
+		}
+
+		.request-document[_ngcontent-c4] {
+			background-color: rgba(228, 63, 63, .2);
+			color: #e43f3f
+		}
+
+		.resolved-document[_ngcontent-c4] {
+			background-color: rgba(119, 119, 119, .2);
+			color: #777
+		}
+
+		.confirmed-document[_ngcontent-c4],
+		.review-approved[_ngcontent-c4] {
+			background-color: rgba(51, 153, 51, .2);
+			color: #393
+		}
+
+		.review-rejected[_ngcontent-c4] {
+			background-color: rgba(228, 63, 63, .2);
+			color: #e43f3f
+		}
+
+		.icon-note[_ngcontent-c4] {
+			color: #999
+		}
+
+		.amount-total[_ngcontent-c4] {
+			font-size: 18px;
+			font-weight: 700;
+			color: #000
+		}
+
+		.payout-total[_ngcontent-c4] {
+			font-size: 18px;
+			font-weight: 700
+		}
+
+		.total-value[_ngcontent-c4] {
+			padding: 0 5px;
+			font-size: 17px;
+			font-weight: 600
+		}
+
+		.amount-label[_ngcontent-c4] {
+			margin-bottom: 5px
+		}
+
+		.payout-label[_ngcontent-c4] {
+			margin-bottom: 5px;
+			color: #0000cd
+		}
+
+		.equivalent-warning[_ngcontent-c4] {
+			position: absolute;
+			right: 15px;
+			top: 0
+		}
+
+		.warning-border[_ngcontent-c4] {
+			border: .8px solid #ffc107 !important
+		}
+
+		.btn-skip-approval[_ngcontent-c4] {
+			background-color: #636ae8;
+			color: #fff;
+			border: none
+		}
+
+		.btn-skip-approval[_ngcontent-c4]:hover {
+			background-color: #4f56d4;
+			color: #fff
+		}
+	</style>
+	<style>
+		.sts-dropdown[_ngcontent-c5] {
+			position: relative;
+			min-width: 80px;
+			width: 100%;
+			cursor: pointer
+		}
+
+		.sts-dropdown__selected-items[_ngcontent-c5] {
+			font-size: 12px
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] {
+			display: flex
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control.active[_ngcontent-c5]:not(.invalid) .input[_ngcontent-c5] {
+			border: 1px solid #6da222
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control.active[_ngcontent-c5]:not(.invalid) .input.no-icon[_ngcontent-c5] {
+			border-radius: 5px;
+			border-left: 1px solid #6da222
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control.active[_ngcontent-c5]:not(.invalid) .input.disabled[_ngcontent-c5] {
+			background-color: #f4f5f8
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control.active[_ngcontent-c5]:not(.invalid) .icon[_ngcontent-c5] {
+			background-color: #6da222;
+			border: 1px solid #6da222
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control.active[_ngcontent-c5]:not(.invalid) .icon[_ngcontent-c5] i[_ngcontent-c5] {
+			color: #fff
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control.invalid[_ngcontent-c5] {
+			border-radius: 5px;
+			border: 1px solid #dc3545
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .icon[_ngcontent-c5] {
+			width: 40px;
+			height: 40px;
+			background-color: #ebedf2;
+			border-radius: 5px 0 0 5px;
+			border: 1px solid #ebedf2;
+			display: flex;
+			justify-content: center;
+			align-items: center
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .icon[_ngcontent-c5] i[_ngcontent-c5] {
+			color: #868e96
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] {
+			border-radius: 0 5px 5px 0;
+			display: flex;
+			flex: 1;
+			border: 1px solid #ebedf2;
+			border-left: none;
+			background: #fff;
+			color: #868e96;
+			justify-content: space-between;
+			height: 40px;
+			overflow: auto
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input.disabled[_ngcontent-c5] {
+			background-color: #f4f5f8
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input.no-icon[_ngcontent-c5] {
+			border-radius: 5px;
+			border-left: 1px solid #ebedf2
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] .left[_ngcontent-c5],
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] .right[_ngcontent-c5] {
+			padding: 8px;
+			display: flex;
+			justify-content: center
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] .left[_ngcontent-c5] {
+			font-size: 14px;
+			overflow: hidden
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] .left[_ngcontent-c5] span[_ngcontent-c5] {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis
+		}
+
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] .la-angle-down[_ngcontent-c5],
+		.sts-dropdown[_ngcontent-c5] .control[_ngcontent-c5] .input[_ngcontent-c5] .la-angle-up[_ngcontent-c5] {
+			font-size: 12px
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] {
+			position: absolute;
+			top: 42px;
+			z-index: 999;
+			right: 0;
+			left: 0;
+			width: 100%;
+			background-color: #fff;
+			box-shadow: 0 4px 13px 0 rgba(0, 0, 0, .09);
+			max-height: 400px;
+			overflow-y: scroll;
+			transition: none
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] {
+			padding: 9px 9px 0;
+			display: flex
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] .left[_ngcontent-c5] {
+			flex: 1
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] .right[_ngcontent-c5] {
+			color: #979797;
+			font-size: 12px
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] .right[_ngcontent-c5] a[_ngcontent-c5] {
+			text-decoration: underline
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] .item[_ngcontent-c5] {
+			padding: 5px;
+			display: inline-flex;
+			align-items: center;
+			background-color: #f1f1f1;
+			border-radius: 5px;
+			color: #888;
+			margin: 0 3px 3px 0
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] .item[_ngcontent-c5] i[_ngcontent-c5] {
+			margin-left: 5px
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .selected[_ngcontent-c5] .item[_ngcontent-c5] .remove-icon[_ngcontent-c5] {
+			cursor: pointer
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .search[_ngcontent-c5] {
+			padding: 10px 9px
+		}
+
+		.sts-dropdown[_ngcontent-c5] .content[_ngcontent-c5] .search[_ngcontent-c5] input[_ngcontent-c5] {
+			width: 100%;
+			border: none;
+			outline: 0
+		}
+
+		.sts-dropdown[_ngcontent-c5] .select-list[_ngcontent-c5] {
+			list-style-type: none;
+			padding: 0;
+			margin: 0
+		}
+
+		.sts-dropdown[_ngcontent-c5] .select-list[_ngcontent-c5] li[_ngcontent-c5] {
+			display: flex;
+			justify-content: space-between;
+			padding: 9px;
+			color: #575962
+		}
+
+		.sts-dropdown[_ngcontent-c5] .select-list[_ngcontent-c5] li[_ngcontent-c5] label[_ngcontent-c5] {
+			min-height: 21px
+		}
+
+		.sts-dropdown[_ngcontent-c5] .select-list[_ngcontent-c5] li[_ngcontent-c5]:last-child {
+			border-bottom: none
+		}
+
+		.sts-dropdown[_ngcontent-c5] .select-list[_ngcontent-c5] li[_ngcontent-c5]:hover {
+			background-color: #eee
+		}
+
+		.sts-dropdown[_ngcontent-c5] .select-list[_ngcontent-c5] .la-check[_ngcontent-c5] {
+			font-size: 12px
+		}
+
+		.control[_ngcontent-c5] .input[_ngcontent-c5] .left[_ngcontent-c5] span[_ngcontent-c5] {
+			padding-left: 8px
+		}
+
+		.search[_ngcontent-c5] {
+			padding: 10px 9px
+		}
+
+		.search[_ngcontent-c5] input[_ngcontent-c5] {
+			width: 100%;
+			border: none;
+			outline: 0
+		}
+
+		.overflow-wrap-anywhere[_ngcontent-c5] {
+			overflow-wrap: anywhere
+		}
+	</style>
+	<style>
+		.date-picker[_ngcontent-c6] {
+			width: 100%
+		}
+
+		.date-picker[_ngcontent-c6] .form-group[_ngcontent-c6] {
+			width: 100%;
+			margin-bottom: 0
+		}
+
+		.date-picker[_ngcontent-c6] .text-box[_ngcontent-c6] {
+			position: relative;
+			display: flex;
+			flex-direction: row;
+			align-items: center
+		}
+
+		.date-picker[_ngcontent-c6] .icon[_ngcontent-c6] {
+			width: 50px;
+			height: 40px;
+			line-height: 40px;
+			text-align: center;
+			background-color: #f4f5f8;
+			border: 1px solid #ebedf2;
+			border-radius: 5px 0 0 5px
+		}
+
+		.date-picker[_ngcontent-c6] .icon[_ngcontent-c6] i[_ngcontent-c6] {
+			color: #868e96
+		}
+
+		.date-picker[_ngcontent-c6] .form-control[_ngcontent-c6] {
+			border-radius: 0 5px 5px 0
+		}
+
+		.date-picker[_ngcontent-c6] .form-control.no-icon[_ngcontent-c6] {
+			border-radius: 5px
+		}
+
+		.date-picker[_ngcontent-c6] .icon-calendar[_ngcontent-c6] {
+			position: absolute;
+			right: 10px;
+			top: 10px
+		}
+
+		.active[_ngcontent-c6] .icon[_ngcontent-c6] {
+			background-color: #6da222 !important;
+			border: 1px solid #6da222 !important
+		}
+
+		.active[_ngcontent-c6] .icon[_ngcontent-c6] i[_ngcontent-c6] {
+			color: #fff !important
+		}
+
+		.custom-container-date-picker .bs-datepicker-container {
+			padding: 0
+		}
+
+		.custom-container-date-picker .bs-datepicker-head {
+			background-color: #f8f9fa;
+			margin: 10px;
+			min-width: 300px
+		}
+
+		.custom-container-date-picker .bs-datepicker-head button.next,
+		.custom-container-date-picker .bs-datepicker-head button.previous {
+			border-radius: 5px
+		}
+
+		.custom-container-date-picker .bs-datepicker-head button.next span,
+		.custom-container-date-picker .bs-datepicker-head button.previous span {
+			border: 1px solid #dfe2ea;
+			border-radius: 5px;
+			color: #c3c4c5;
+			line-height: 22px
+		}
+
+		.custom-container-date-picker .bs-datepicker-head button.current {
+			border-radius: 5px;
+			border: 1px solid #dfe2ea;
+			color: #495057;
+			background-color: #fff
+		}
+
+		.custom-container-date-picker .bs-datepicker-body {
+			border: 0
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table td span {
+			color: #212529;
+			font-size: 14px
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks tr {
+			height: 45px
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks thead tr {
+			background-color: #f8f9fa
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks thead tr th {
+			font-size: 14px;
+			font-weight: 700;
+			color: #212529
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks td span {
+			border-radius: 5px;
+			padding: 0 10px;
+			width: 45px;
+			height: 30px
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks td span.disabled,
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks td span.is-other-month {
+			color: rgba(0, 0, 0, .25)
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks td span.selected {
+			background-color: #6da222;
+			color: #fff
+		}
+
+		.custom-container-date-picker .bs-datepicker-body table.days.weeks td span.today {
+			background-color: #e0e0e0
+		}
+	</style>
+	<style>
+		.inq-attachment[_ngcontent-c7] {
+			margin-bottom: 20px;
+			border-radius: 4px;
+			border: 1px solid #ebedf2
+		}
+
+		.inq-attachment[_ngcontent-c7] .nav-tabs[_ngcontent-c7] {
+			padding: 14px;
+			margin: 0
+		}
+
+		.inq-attachment[_ngcontent-c7] .nav-tabs[_ngcontent-c7] .m-tabs__link[_ngcontent-c7] {
+			padding: 0
+		}
+
+		.inq-attachment[_ngcontent-c7] .nav-tabs[_ngcontent-c7] .active[_ngcontent-c7],
+		.inq-attachment[_ngcontent-c7] .nav-tabs[_ngcontent-c7] .m-tabs__link[_ngcontent-c7]:hover {
+			background: 0 0;
+			color: #888;
+			border-bottom: 1px solid #7bbd1e
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .tab-pane[_ngcontent-c7] {
+			padding: 14px
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .tab-pane[_ngcontent-c7] .row[_ngcontent-c7] button[_ngcontent-c7] {
+			margin-top: 35px
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .inq-upload[_ngcontent-c7] {
+			height: 104px;
+			border-radius: 4px;
+			background-color: #f7f7f7
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .drap-inq[_ngcontent-c7] {
+			margin: auto;
+			width: 100%;
+			top: 50%;
+			position: relative;
+			-webkit-transform: translateY(-50%);
+			transform: translateY(-50%);
+			border: none
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .drap-inq[_ngcontent-c7] .wrapper[_ngcontent-c7] {
+			text-align: center
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .drap-inq[_ngcontent-c7] .wrapper[_ngcontent-c7] .drap-inq-btn[_ngcontent-c7] {
+			width: 196px;
+			height: 39px;
+			border-radius: 2px;
+			background-color: #fff;
+			border: 1px solid #d7d9e0;
+			font-size: 14px;
+			color: #737373
+		}
+
+		.inq-attachment[_ngcontent-c7] .tab-content[_ngcontent-c7] .drap-inq[_ngcontent-c7] .drap-inq-title[_ngcontent-c7] {
+			opacity: .8;
+			font-size: 14px;
+			line-height: 1.43;
+			text-align: center;
+			color: #888
+		}
+
+		.inq-attachment[_ngcontent-c7] .d-flex[_ngcontent-c7] .form-group[_ngcontent-c7] {
+			width: 45%
+		}
+
+		.inq-attachment[_ngcontent-c7] .d-flex[_ngcontent-c7] .save_link[_ngcontent-c7] {
+			width: 10%;
+			float: right
+		}
+
+		.inq-attachment[_ngcontent-c7] .new_link[_ngcontent-c7] a[_ngcontent-c7] {
+			font-size: 16px;
+			color: #7bbd1e;
+			cursor: pointer
+		}
+
+		.form-group[_ngcontent-c7] {
+			margin-bottom: 13px !important
+		}
+
+		.btn-add-new[_ngcontent-c7] {
+			color: #7bbd1e;
+			font-weight: 600
+		}
+
+		.attachments[_ngcontent-c7] {
+			margin-bottom: 20px
+		}
+
+		.attachments__subject[_ngcontent-c7] {
+			width: 16%;
+			opacity: .8;
+			font-size: 14px;
+			line-height: 1.43;
+			padding: 8px;
+			color: #888
+		}
+
+		.attachments__list[_ngcontent-c7] {
+			width: 83%
+		}
+
+		.attachments__link-icon[_ngcontent-c7] {
+			width: 20px;
+			height: 18px
+		}
+
+		.attachments[_ngcontent-c7] .d-flex[_ngcontent-c7] {
+			max-width: 700px
+		}
+
+		.drop-zone-customstyle[_ngcontent-c7] {
+			border: none !important
+		}
+
+		input[_ngcontent-c7]:focus {
+			outline: 0 !important;
+			border: 1px solid #7bbd1e !important;
+			box-shadow: none !important
+		}
+
+		.error-message-container[_ngcontent-c7] {
+			padding-bottom: 5px
+		}
+	</style>
+	<style>
+		.drop-zone[_ngcontent-c8] {
+			margin: auto;
+			height: 100px;
+			border: 2px dotted #0782d0;
+			border-radius: 30px
+		}
+
+		.content[_ngcontent-c8] {
+			color: #0782d0;
+			height: 100px;
+			display: -webkit-box;
+			display: -ms-flexbox;
+			display: flex;
+			-webkit-box-pack: center;
+			-ms-flex-pack: center;
+			justify-content: center;
+			-webkit-box-align: center;
+			-ms-flex-align: center;
+			align-items: center
+		}
+
+		.over[_ngcontent-c8] {
+			background-color: rgba(147, 147, 147, .5)
+		}
+	</style>
+</head>
+
+<body
+	class="m-page--fluid m-content--skin-light2 m-header--fixed m-header--fixed-mobile m-aside-left--enabled m-aside-left--skin-dark m-aside-left--fixed m-aside-left--offcanvas m-footer--push">
+	<app-root _nghost-c0="" ng-version="6.1.10"><!---->
+		<div _ngcontent-c0="" class="m-grid m-grid--hor m-grid--root m-page"><app-nav-bar _ngcontent-c0=""
+				_nghost-c1="">
+				<header _ngcontent-c1="" class="m-grid__item m-header" data-minimize-mobile-offset="200"
+					data-minimize-offset="200">
+					<div _ngcontent-c1="" class="m-container m-container--fluid m-container--full-height">
+						<div _ngcontent-c1="" class="m-stack m-stack--ver m-stack--desktop">
+							<div _ngcontent-c1="" class="m-stack__item m-brand  m-brand--skin-dark transition">
+								<div _ngcontent-c1="" class="m-stack m-stack--ver m-stack--general">
+									<div _ngcontent-c1="" class="m-stack__item m-stack__item--middle m-brand__logo"><a
+											_ngcontent-c1="" class="m-brand__logo-wrapper" routerlink="/client-payments"
+											href="/client-payments"><img _ngcontent-c1="" alt=""
+												src="assets/img/Logo_Light_FinPlan.svg"></a></div>
+									<div _ngcontent-c1="" class="m-stack__item m-stack__item--middle m-brand__tools"><a
+											_ngcontent-c1=""
+											class="m-brand__icon m-brand__toggler m-brand__toggler--left m--visible-desktop-inline-block"
+											href="javascript:;" id="m_aside_left_minimize_toggle"><span
+												_ngcontent-c1=""></span></a><a _ngcontent-c1=""
+											class="m-brand__icon m-brand__toggler m-brand__toggler--left m--visible-tablet-and-mobile-inline-block"
+											href="javascript:;" id="m_aside_left_offcanvas_toggle"><span
+												_ngcontent-c1=""></span></a><a _ngcontent-c1=""
+											class="m-brand__icon m--visible-tablet-and-mobile-inline-block"
+											href="javascript:;" id="m_aside_header_topbar_mobile_toggle"><i
+												_ngcontent-c1="" class="flaticon-more"></i></a></div>
+								</div>
+							</div>
+							<div _ngcontent-c1="" class="m-stack__item m-stack__item--fluid m-header-head"
+								id="m_header_nav"><button _ngcontent-c1=""
+									class="m-aside-header-menu-mobile-close  m-aside-header-menu-mobile-close--skin-dark"
+									id="m_aside_header_menu_mobile_close_btn"><i _ngcontent-c1=""
+										class="la la-close"></i></button>
+								<div _ngcontent-c1="" class="t-breadcrumbs">
+									<ul _ngcontent-c1="">
+										<li _ngcontent-c1=""><a _ngcontent-c1="" class="mr-2" href="/dashboard"><i
+													_ngcontent-c1="" class="la la-home"></i></a></li><!---->
+										<li _ngcontent-c1=""><a _ngcontent-c1=""
+												href="/purchase-orders/update/:id">Purchase Order</a><i _ngcontent-c1=""
+												class="la la-angle-right"></i></li>
+										<li _ngcontent-c1=""><a _ngcontent-c1=""
+												href="/purchase-orders/payment-items/:id">Update Payment Items</a><i
+												_ngcontent-c1="" class="la la-angle-right"></i></li>
+									</ul>
+								</div>
+								<div _ngcontent-c1="" class="m-topbar  m-stack m-stack--ver m-stack--general"
+									id="m_header_topbar">
+									<div _ngcontent-c1="" class="m-stack__item m-topbar__nav-wrapper">
+										<ul _ngcontent-c1="" class="m-topbar__nav m-nav m-nav--inline">
+											<li _ngcontent-c1="" aria-expanded="true"
+												class="m-nav__item m-topbar__user-profile m-topbar__user-profile--img m-dropdown m-dropdown--medium m-dropdown--arrow m-dropdown--header-bg-fill m-dropdown--align-right m-dropdown--mobile-full-width m-dropdown--skin-light"
+												data-dropdown-toggle="click"><a _ngcontent-c1=""
+													class="m-nav__link m-dropdown__toggle" href="#"><span
+														_ngcontent-c1="" class="m-topbar__userpic avt-user"><img
+															_ngcontent-c1="" alt=""
+															class="m--img-rounded m--marginless m--img-centered"
+															src="assets/img/user.png"></span></a>
+												<div _ngcontent-c1="" class="m-dropdown__wrapper"><span _ngcontent-c1=""
+														class="m-dropdown__arrow m-dropdown__arrow--right m-dropdown__arrow--adjust"></span>
+													<div _ngcontent-c1="" class="m-dropdown__inner">
+														<div _ngcontent-c1=""
+															class="m-dropdown__header m--align-center">
+															<div _ngcontent-c1=""
+																class="m-card-user m-card-user--skin-dark">
+																<div _ngcontent-c1="" class="m-card-user__pic"><img
+																		_ngcontent-c1="" alt=""
+																		class="m--img-rounded m--marginless" src="">
+																</div>
+																<div _ngcontent-c1="" class="m-card-user__details"><span
+																		_ngcontent-c1=""
+																		class="m-card-user__name m--font-weight-500">Tony
+																		CFO Nguyen</span><a _ngcontent-c1=""
+																		class="m-card-user__email m--font-weight-300 m-link"
+																		href="">cfo@saigontechnology.com</a></div>
+															</div>
+														</div>
+														<div _ngcontent-c1="" class="m-dropdown__body">
+															<div _ngcontent-c1="" class="m-dropdown__content">
+																<ul _ngcontent-c1="" class="m-nav m-nav--skin-light">
+																	<li _ngcontent-c1="" class="m-nav__item"><a
+																			_ngcontent-c1=""
+																			class="btn m-btn--pill btn-secondary m_btn_header  m-btn--label-brand m-btn--bolder"
+																			target="blank">Change Password </a><a
+																			_ngcontent-c1=""
+																			class="btn m-btn--pill btn-secondary m_btn_header m-btn--label-brand m-btn--bolder">Logout</a>
+																	</li>
+																</ul>
+															</div>
+														</div>
+													</div>
+												</div>
+											</li>
+											<li _ngcontent-c1="" class="m-nav__item profile-name pl-0"><a
+													_ngcontent-c1="" class="m-nav__link d-flex align-items-center">Tony
+													CFO Nguyen</a></li>
+										</ul>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</header>
+			</app-nav-bar>
+			<div _ngcontent-c0=""
+				class="m-grid__item m-grid__item--fluid m-grid m-grid--ver-desktop m-grid--desktop m-body"><button
+					_ngcontent-c0="" class="m-aside-left-close m-aside-left-close--skin-dark"
+					id="m_aside_left_close_btn"><i _ngcontent-c0="" class="la la-close"></i></button><app-side-bar
+					_ngcontent-c0="" _nghost-c2="">
+					<div _ngcontent-c2=""
+						class="m-grid__item m-aside-left m-aside-left--skin-dark transition m-aside-left--off"
+						id="m_aside_left">
+						<div _ngcontent-c2=""
+							class="m-aside-menu m-aside-menu--skin-dark m-aside-menu--submenu-skin-dark"
+							data-menu-dropdown-timeout="500" data-menu-scrollable="false" data-menu-vertical="true"
+							id="m_ver_menu">
+							<ul _ngcontent-c2="" class="m-menu__nav m-menu__nav--dropdown-submenu-arrow">
+								<!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/client-payments"><i _ngcontent-c2=""
+											class="m-menu__link-icon"><img _ngcontent-c2="" alt="" class="t-menu-icon"
+												src="assets/img/icon/client-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Client
+													Payments</span></span></span><!----><i _ngcontent-c2=""
+											class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/client-payments/create"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Create
+														Payment</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/supplier-contracts"><i
+											_ngcontent-c2="" class="m-menu__link-icon"><img _ngcontent-c2="" alt=""
+												class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Supplier
+													Contracts</span></span></span><!----><i _ngcontent-c2=""
+											class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/supplier-contracts/create"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Create Supplier
+														Contract</span></a></li><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/supplier-contracts/upcoming-payments"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Upcoming
+														Payments</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle parent-selected" href="/purchase-orders"><i
+											_ngcontent-c2="" class="m-menu__link-icon"><img _ngcontent-c2="" alt=""
+												class="t-menu-icon"
+												src="assets/img/icon/supplier-payments-active.svg"></i><span
+											_ngcontent-c2="" class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Purchase
+													Orders</span></span></span><!----><i _ngcontent-c2=""
+											class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/purchase-orders/create"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Create Purchase
+														Order</span></a></li><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/purchase-orders/payment-items"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Payment
+														Items</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/project-inside"><i _ngcontent-c2=""
+											class="m-menu__link-icon"><img _ngcontent-c2="" alt="" class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Project
+													Inside</span></span></span><!----><i _ngcontent-c2=""
+											class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/project-inside/project-budget/create"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Create Project
+														Budget</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/tags"><i _ngcontent-c2=""
+											class="m-menu__link-icon"><img _ngcontent-c2="" alt="" class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Tags</span></span></span><!----><i
+											_ngcontent-c2="" class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/tags/create"><i _ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Create
+														Tag</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/suppliers"><i _ngcontent-c2=""
+											class="m-menu__link-icon"><img _ngcontent-c2="" alt="" class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Suppliers</span></span></span><!----><i
+											_ngcontent-c2="" class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/suppliers/create"><i _ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Create
+														Supplier</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/report/payments-items-report"><i
+											_ngcontent-c2="" class="m-menu__link-icon"><img _ngcontent-c2="" alt=""
+												class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Reports</span></span></span><!----><i
+											_ngcontent-c2="" class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/report/payments-items-report"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Payments Items
+														Report</span></a></li><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/report/old-client-revenue-report"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Up Sales
+														Report</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/users"><i _ngcontent-c2=""
+											class="m-menu__link-icon"><img _ngcontent-c2="" alt="" class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Users</span></span></span><!----></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----></ul>
+									</div>
+								</li><!----><!----><!---->
+								<li _ngcontent-c2="" aria-haspopup="true" m-menu-submenu-toggle="hover"
+									class="m-menu__item m-menu__item--submenu m-menu__item--open"><a _ngcontent-c2=""
+										class="m-menu__link m-menu__toggle" href="/global-settings"><i _ngcontent-c2=""
+											class="m-menu__link-icon"><img _ngcontent-c2="" alt="" class="t-menu-icon"
+												src="assets/img/icon/supplier-payments.svg"></i><span _ngcontent-c2=""
+											class="m-menu__link-title"><span _ngcontent-c2=""
+												class="m-menu__link-wrap"><span _ngcontent-c2=""
+													class="m-menu__link-text path-name">Global
+													Settings</span></span></span><!----><i _ngcontent-c2=""
+											class="m-menu__ver-arrow la la-angle-right"></i></a>
+									<div _ngcontent-c2="" class="m-menu__submenu" m-hidden-height="160"><span
+											_ngcontent-c2="" class="m-menu__arrow"></span>
+										<ul _ngcontent-c2="" class="m-menu__subnav"><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/global-settings/general-settings"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">General
+														Settings</span></a></li><!----><!----><!---->
+											<li _ngcontent-c2="" class="m-menu__item"><a _ngcontent-c2=""
+													class="m-menu__link" href="/global-settings/exchange-rates"><i
+														_ngcontent-c2=""
+														class="m-menu__link-bullet m-menu__link-bullet--dot"><span
+															_ngcontent-c2=""></span></i><span _ngcontent-c2=""
+														class="m-menu__link-text position path-name">Expense Exchange
+														Rates</span></a></li><!---->
+										</ul>
+									</div>
+								</li><!---->
+							</ul>
+						</div>
+					</div>
+				</app-side-bar>
+				<div _ngcontent-c0="" class="m-grid__item m-grid__item--fluid m-wrapper"><router-outlet
+						_ngcontent-c0=""></router-outlet><app-payment-item-update _nghost-c3="">
+						<div _ngcontent-c3="">
+							<div _ngcontent-c3="" class="m-subheader">
+								<div _ngcontent-c3="" class="m-subheader__main">
+									<h3 _ngcontent-c3="" class="m-subheader__title"> Update Payment Item </h3>
+								</div>
+							</div>
+							<div _ngcontent-c3="" class="m-content">
+								<div _ngcontent-c3="" class="m-portlet">
+									<div _ngcontent-c3="" class="m-portlet__body"><app-payment-item-form
+											_ngcontent-c3="" _nghost-c4=""><!---->
+											<div _ngcontent-c4="" class="payment-item-form"><!----><!---->
+												<form _ngcontent-c4="" class="m-form ng-untouched ng-pristine ng-valid"
+													novalidate="">
+													<div _ngcontent-c4="" class="row"><!---->
+														<div _ngcontent-c4="" class="col-12">
+															<div _ngcontent-c4="" class="grouped-section">
+																<div _ngcontent-c4="" class="grouped-section__header">
+																	<span _ngcontent-c4=""><a _ngcontent-c4=""
+																			href="/purchase-orders/update/35141">
+																			Purchase Order Information </a></span></div>
+																<div _ngcontent-c4="" class="grouped-section__body">
+																	<div _ngcontent-c4=""
+																		class="form-group m-form__group">
+																		<div _ngcontent-c4="" class="row">
+																			<div _ngcontent-c4="" class="col-lg-3">
+																				<label _ngcontent-c4=""
+																					class="form-control-label">Supplier
+																					Name</label><input _ngcontent-c4=""
+																					class="form-control ng-untouched ng-pristine"
+																					disabled="" name="supplierName">
+																			</div>
+																			<div _ngcontent-c4="" class="col-lg-3">
+																				<label _ngcontent-c4=""
+																					class="form-control-label">Purchase
+																					Order No</label><input
+																					_ngcontent-c4=""
+																					class="form-control ng-untouched ng-pristine"
+																					disabled="" name="purchaseOrderNo">
+																			</div><!----><!---->
+																			<div _ngcontent-c4="" class="col-lg-3">
+																				<label _ngcontent-c4=""
+																					class="form-control-label">Client
+																					Contract</label><input
+																					_ngcontent-c4=""
+																					class="form-control ng-untouched ng-pristine"
+																					disabled="" name="clientContract">
+																			</div>
+																			<div _ngcontent-c4="" class="col-lg-3">
+																				<label _ngcontent-c4=""
+																					class="form-control-label">Project
+																					Code</label><input _ngcontent-c4=""
+																					class="form-control ng-untouched ng-pristine"
+																					disabled="" name="projectCode">
+																			</div>
+																		</div>
+																	</div>
+																</div>
+															</div>
+														</div>
+													</div>
+													<hr _ngcontent-c4="">
+													<div _ngcontent-c4="" class="row"><!---->
+														<div _ngcontent-c4="" class="col-12">
+															<div _ngcontent-c4=""
+																class="d-flex align-items-center status">
+																<div _ngcontent-c4="">
+																	<div _ngcontent-c4=""
+																		class="status__lasted d-inline-block"> Completed
+																	</div><br _ngcontent-c4=""><!---->
+																</div>
+																<div _ngcontent-c4="" class="status__date m-0 px-4">06
+																	Sep 2026</div>
+																<!----><!----><!----><!----><!----><!----><!----><!----><!----><button
+																	_ngcontent-c4=""
+																	class="btn btn-default mt-2 mr-2 btn-ops"
+																	type="button"> Reverse To Paid
+																</button><!----><button _ngcontent-c4=""
+																	class="btn btn-default mt-2 mr-2 btn-ops"
+																	type="button"> Reverse To Ready to Pay
+																</button><!---->
+															</div>
+														</div>
+													</div>
+													<div _ngcontent-c4="" class="row"><!---->
+														<div _ngcontent-c4="" class="col-12">
+															<div _ngcontent-c4="" class="grouped-section">
+																<div _ngcontent-c4="" class="grouped-section__header">
+																	<div _ngcontent-c4=""><i _ngcontent-c4=""
+																			class="la la-angle-down"></i></div><span
+																		_ngcontent-c4="">Detail</span>
+																</div><!---->
+																<div _ngcontent-c4="" class="grouped-section__body">
+																	<div _ngcontent-c4="" class="row">
+																		<div _ngcontent-c4="" class="col-lg-6 col-12">
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group text-left">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4="" class="col-6">
+																						<label _ngcontent-c4=""
+																							class="form-control-label">Owner<span
+																								_ngcontent-c4=""
+																								class="text-danger">*</span></label><app-sts-dropdown-list
+																							_ngcontent-c4="" icon=""
+																							placeholder="Select Owner"
+																							_nghost-c5="">
+																							<div _ngcontent-c5=""
+																								class="sts-dropdown">
+																								<div _ngcontent-c5=""
+																									class="control active">
+																									<!---->
+																									<div _ngcontent-c5=""
+																										class="input no-icon">
+																										<div _ngcontent-c5=""
+																											class="left">
+																											<!----><span
+																												_ngcontent-c5="">Thanh
+																												Tran</span><!---->
+																										</div>
+																										<div _ngcontent-c5=""
+																											class="right">
+																											<span
+																												_ngcontent-c5=""><!----><!----><i
+																													_ngcontent-c5=""
+																													class="fa fa-angle-down"></i><!----></span>
+																										</div>
+																									</div>
+																								</div><!----><!---->
+																							</div>
+																						</app-sts-dropdown-list></div>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4="" class="col-6">
+																						<label _ngcontent-c4=""
+																							class="form-control-label">Part
+																							<span _ngcontent-c4=""
+																								class="text-danger">*</span></label><span
+																							_ngcontent-c4=""
+																							class="d-inline-block pull-right"><i
+																								_ngcontent-c4="">#46533</i></span><input
+																							_ngcontent-c4=""
+																							class="form-control ng-untouched ng-pristine ng-valid"
+																							name="part"
+																							placeholder="Part"
+																							required=""><!----></div>
+																					<div _ngcontent-c4="" class="col-6">
+																						<label _ngcontent-c4=""
+																							class="form-control-label">Expected
+																							Payment Date<span
+																								_ngcontent-c4=""
+																								class="text-danger">*</span></label><app-sts-date-picker
+																							_ngcontent-c4=""
+																							placeholder="Estimate"
+																							_nghost-c6="">
+																							<div _ngcontent-c6=""
+																								class="date-picker">
+																								<div _ngcontent-c6=""
+																									class="form-group">
+																									<div _ngcontent-c6=""
+																										class="text-box active">
+																										<!----><input
+																											_ngcontent-c6=""
+																											bsdatepicker=""
+																											class="form-control no-icon ng-untouched ng-pristine ng-valid"
+																											type="text"
+																											placeholder="Estimate"><!---->
+																										<div _ngcontent-c6=""
+																											class="icon-calendar">
+																											<i _ngcontent-c6=""
+																												class="fa fa-calendar"></i>
+																										</div>
+																									</div>
+																									<!----><!----><!---->
+																								</div>
+																							</div>
+																						</app-sts-date-picker></div>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group text-left">
+																				<label _ngcontent-c4=""
+																					class="form-control-label">Tags</label><app-sts-dropdown-list
+																					_ngcontent-c4=""
+																					placeholder="Select Tags"
+																					_nghost-c5="">
+																					<div _ngcontent-c5=""
+																						class="sts-dropdown">
+																						<div _ngcontent-c5=""
+																							class="control active">
+																							<!---->
+																							<div _ngcontent-c5=""
+																								class="icon"><i
+																									_ngcontent-c5=""
+																									class="fa fa-list-alt"></i>
+																							</div>
+																							<div _ngcontent-c5=""
+																								class="input">
+																								<div _ngcontent-c5=""
+																									class="left">
+																									<!----><!----><span
+																										_ngcontent-c5="">Select
+																										Tags</span>
+																								</div>
+																								<div _ngcontent-c5=""
+																									class="right"><span
+																										_ngcontent-c5=""><!----><span
+																											_ngcontent-c5=""
+																											class="mr-2">(6)</span><!----><i
+																											_ngcontent-c5=""
+																											class="fa fa-angle-down"></i><!----></span>
+																								</div>
+																							</div>
+																						</div><!---->
+																						<div _ngcontent-c5=""
+																							class="sts-dropdown__selected-items">
+																							<!----><span
+																								_ngcontent-c5="">Không
+																								hoá đơn, </span><span
+																								_ngcontent-c5="">Nhật
+																								thanh toán, </span><span
+																								_ngcontent-c5="">Equipment
+																								► Software, </span><span
+																								_ngcontent-c5="">Nhật
+																								thanh toán ► M7272,
+																							</span><span
+																								_ngcontent-c5="">Waiting
+																								for bank statement,
+																							</span><span
+																								_ngcontent-c5="">Ready
+																								for Auto Charge ►
+																								Checked </span></div>
+																						<!---->
+																					</div>
+																				</app-sts-dropdown-list></div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group text-left">
+																				<div _ngcontent-c4=""
+																					class="amount-label"><span
+																						_ngcontent-c4=""
+																						class="amount-total">Total
+																						Amount: </span><span
+																						_ngcontent-c4=""
+																						class="total-value">10.00
+																						USD</span><!----><span
+																						_ngcontent-c4=""
+																						class="total-value">(269,268.00
+																						VND)</span></div>
+																				<div _ngcontent-c4=""
+																					class="payout-label"><span
+																						_ngcontent-c4=""
+																						class="payout-total">Total
+																						Payout: </span><span
+																						_ngcontent-c4=""
+																						class="total-value">10.00
+																						USD</span><!----><span
+																						_ngcontent-c4=""
+																						class="total-value">(269,268.00
+																						VND)</span></div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Amount
+																							(excluding tax)</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="amount"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21"><!---->
+																							<div _ngcontent-c4=""
+																								class="icon"> USD </div>
+																						</div>
+																					</div>
+																					<div _ngcontent-c4=""
+																						class="col-lg-6 position-relative">
+																						<!----><!----><label
+																							_ngcontent-c4=""
+																							class="form-control-label">
+																							Equivalent </label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="equivalentAmount"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21">
+																							<div _ngcontent-c4=""
+																								class="icon"> VND </div>
+																						</div>
+																					</div>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">VAT
+																							Amount</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="vat-amount"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21"><!---->
+																							<div _ngcontent-c4=""
+																								class="icon"> USD </div>
+																						</div>
+																					</div>
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Equivalent</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="equivalentVATAmount"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21">
+																							<div _ngcontent-c4=""
+																								class="icon"> VND </div>
+																						</div>
+																					</div>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">PIT
+																							Amount</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="pit-amount"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21"><!---->
+																							<div _ngcontent-c4=""
+																								class="icon"> USD </div>
+																						</div>
+																					</div>
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Equivalent</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="equivalentPITAmount"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21">
+																							<div _ngcontent-c4=""
+																								class="icon"> VND </div>
+																						</div>
+																					</div>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Bank
+																							fee</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="bank-fee"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21"><!---->
+																							<div _ngcontent-c4=""
+																								class="icon"> USD </div>
+																						</div>
+																					</div>
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Equivalent</label>
+																						<div _ngcontent-c4=""
+																							class="form-control-currency">
+																							<input _ngcontent-c4=""
+																								class="form-control ng-untouched ng-pristine ng-valid"
+																								name="equivalentBankFee"
+																								numericdecimal=""
+																								placeholder="0"
+																								type="text"
+																								maxlength="21">
+																							<div _ngcontent-c4=""
+																								class="icon"> VND </div>
+																						</div>
+																					</div>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group text-left">
+																				<div _ngcontent-c4="" class="row">
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Invoice
+																							No</label><br
+																							_ngcontent-c4=""><input
+																							_ngcontent-c4=""
+																							class="form-control ng-untouched ng-pristine ng-valid"
+																							name="tax-invoice"
+																							placeholder="Invoice No"
+																							maxlength="255"></div>
+																					<div _ngcontent-c4=""
+																						class="col-lg-6"><label
+																							_ngcontent-c4=""
+																							class="form-control-label">Tax
+																							Issued
+																							Date</label><app-sts-date-picker
+																							_ngcontent-c4=""
+																							placeholder="Issued Date"
+																							_nghost-c6="">
+																							<div _ngcontent-c6=""
+																								class="date-picker">
+																								<div _ngcontent-c6=""
+																									class="form-group">
+																									<div _ngcontent-c6=""
+																										class="text-box">
+																										<!----><input
+																											_ngcontent-c6=""
+																											bsdatepicker=""
+																											class="form-control no-icon ng-untouched ng-pristine ng-valid"
+																											type="text"
+																											placeholder="Issued Date"><!---->
+																										<div _ngcontent-c6=""
+																											class="icon-calendar">
+																											<i _ngcontent-c6=""
+																												class="fa fa-calendar"></i>
+																										</div>
+																									</div>
+																									<!----><!----><!---->
+																								</div>
+																							</div>
+																						</app-sts-date-picker></div>
+																				</div>
+																			</div>
+																		</div>
+																		<div _ngcontent-c4="" class="col-lg-6 col-12">
+																			<div _ngcontent-c4=""
+																				class="row form-group m-form__group">
+																				<div _ngcontent-c4="" class="col-12">
+																					<label _ngcontent-c4=""
+																						class="form-control-label">Note</label><textarea
+																						_ngcontent-c4=""
+																						class="form-control ng-untouched ng-pristine ng-valid"
+																						name="note"
+																						placeholder="Type something..."
+																						rows="4"
+																						maxlength="2000"></textarea>
+																				</div>
+																			</div>
+																			<div _ngcontent-c4=""
+																				class="form-group m-form__group"><label
+																					_ngcontent-c4=""
+																					class="form-control-label">Attachments</label><app-sts-attachments
+																					_ngcontent-c4="" _nghost-c7="">
+																					<div _ngcontent-c7=""
+																						class="error-message-container">
+																						<!----></div>
+																					<div _ngcontent-c7=""
+																						class="inq-attachment">
+																						<ul _ngcontent-c7=""
+																							class="nav nav-tabs  m-tabs-line"
+																							role="tablist">
+																							<li _ngcontent-c7=""
+																								class="nav-item m-tabs__item">
+																								<a _ngcontent-c7=""
+																									aria-selected="true"
+																									class="nav-link m-tabs__link active show"
+																									data-toggle="tab"
+																									role="tab"
+																									href="#tab-1">Upload</a>
+																							</li>
+																							<li _ngcontent-c7=""
+																								class="nav-item m-tabs__item">
+																								<a _ngcontent-c7=""
+																									aria-selected="false"
+																									class="nav-link m-tabs__link"
+																									data-toggle="tab"
+																									role="tab"
+																									href="#tab-2"> Web
+																									Address (URL)</a>
+																							</li>
+																						</ul>
+																						<div _ngcontent-c7=""
+																							class="tab-content">
+																							<div _ngcontent-c7=""
+																								class="tab-pane active show inq-upload"
+																								role="tabpanel"
+																								id="tab-1">
+																								<div _ngcontent-c7=""
+																									class="drap-inq">
+																									<file-drop
+																										_ngcontent-c7=""
+																										customstyle="drop-zone-customstyle"
+																										_nghost-c8="">
+																										<div _ngcontent-c8=""
+																											id="dropZone"
+																											class="drop-zone-customstyle">
+																											<div _ngcontent-c8=""
+																												class="content">
+																												<div _ngcontent-c7=""
+																													class="wrapper">
+																													<p _ngcontent-c7=""
+																														class="drap-inq-title">
+																														Drag
+																														photos
+																														here
+																														or,
+																														if
+																														you
+																														prefer…
+																													</p>
+																													<button
+																														_ngcontent-c7=""
+																														class="btn btn-default drap-inq-btn"
+																														type="button"><i
+																															_ngcontent-c7=""
+																															class="fa fa-plus"></i>Choose
+																														files
+																														to
+																														upload
+																													</button><input
+																														_ngcontent-c7=""
+																														accept="*"
+																														class="d-none"
+																														id="upload-file-attachment"
+																														multiple=""
+																														name="uploadFile"
+																														type="file">
+																												</div>
+																											</div>
+																										</div>
+																									</file-drop></div>
+																							</div>
+																							<div _ngcontent-c7=""
+																								class="tab-pane"
+																								role="tabpanel"
+																								id="tab-2">
+																								<form _ngcontent-c7=""
+																									novalidate=""
+																									class="ng-untouched ng-pristine ng-valid">
+																									<!---->
+																									<div _ngcontent-c7=""
+																										class="row">
+																										<!----></div>
+																									<div _ngcontent-c7=""
+																										class="row">
+																										<!----></div>
+																								</form>
+																								<div _ngcontent-c7=""
+																									class="row new_link">
+																									<div _ngcontent-c7=""
+																										class="col-md-12">
+																										<!----><a
+																											_ngcontent-c7=""
+																											class="btn-add-new"><i
+																												_ngcontent-c7=""
+																												class="fa fa-plus"></i>
+																											Add New Link
+																										</a></div>
+																								</div>
+																							</div>
+																						</div>
+																					</div><!---->
+																					<div _ngcontent-c7=""
+																						class="attachments">
+																						<div _ngcontent-c7=""
+																							class="d-flex"><span
+																								_ngcontent-c7=""
+																								class="attachments__subject">Upload
+																								: </span>
+																							<div _ngcontent-c7=""
+																								class="attachments__list">
+																								<!----><!----><!----><span
+																									_ngcontent-c7=""
+																									class="attachment-item"
+																									title="Invoice-HDBLZS6S-0003.pdf"><img
+																										_ngcontent-c7=""
+																										alt=""
+																										src="assets/img/file-detail-pdf.png"><a
+																										_ngcontent-c7=""
+																										target="_blank"
+																										href="https://finplanapi.saigontechnology.vn/api/file?key=ccef1aa5-996b-4c17-81f1-b2cceb982e3a">Invoice-HDBLZS6S-0003.pdf</a><!----><i
+																										_ngcontent-c7=""
+																										class="fa fa-close"></i></span><!----><!----><!----><span
+																									_ngcontent-c7=""
+																									class="attachment-item"
+																									title="Receipt-2955-8835.pdf"><img
+																										_ngcontent-c7=""
+																										alt=""
+																										src="assets/img/file-detail-pdf.png"><a
+																										_ngcontent-c7=""
+																										target="_blank"
+																										href="https://finplanapi.saigontechnology.vn/api/file?key=311df3cd-75d2-4e35-b714-8a4ee7ce4c74">Receipt-2955-8835.pdf</a><!----><i
+																										_ngcontent-c7=""
+																										class="fa fa-close"></i></span><!---->
+																							</div>
+																						</div>
+																					</div><!---->
+																					<div _ngcontent-c7=""
+																						class="attachments">
+																						<div _ngcontent-c7=""
+																							class="d-flex"><span
+																								_ngcontent-c7=""
+																								class="attachments__subject">Links
+																								: </span>
+																							<div _ngcontent-c7=""
+																								class="attachments__list">
+																								<!----><!----><!----><!----><!----><!----><!---->
+																							</div>
+																						</div>
+																					</div>
+																				</app-sts-attachments></div>
+																		</div>
+																	</div>
+																</div>
+															</div>
+														</div>
+													</div>
+													<div _ngcontent-c4="" class="row"><!---->
+														<div _ngcontent-c4="" class="col-12">
+															<div _ngcontent-c4="" class="grouped-section">
+																<div _ngcontent-c4="" class="grouped-section__header">
+																	<div _ngcontent-c4=""><i _ngcontent-c4=""
+																			class="la la-angle-down"></i></div><span
+																		_ngcontent-c4="">Status Change History</span>
+																</div><!---->
+																<div _ngcontent-c4="" class="grouped-section__body">
+																	<div _ngcontent-c4=""
+																		class="table m-datatable m-datatable--default m-datatable--scroll m-datatable--loaded">
+																		<table _ngcontent-c4=""
+																			class="m-datatable__table m-datatable__table--fluid table-striped">
+																			<thead _ngcontent-c4=""
+																				class="m-datatable__head">
+																				<!----><!----><!----><!---->
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Actor<!---->
+																						</div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Status<!---->
+																						</div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Document
+																							Status<!----></div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Review
+																							Status<!----></div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Status Change
+																							Date<!----></div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Action
+																							Time<!----></div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell cell-head-note">
+																						<!---->
+																						<div><!----><!---->Note<!---->
+																						</div><!---->
+																					</th>
+																					<th _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!---->
+																						<div><!----><!---->Change
+																							Criteria<!----></div><!---->
+																					</th>
+																				</tr><!----><!---->
+																			</thead>
+																			<tbody _ngcontent-c4=""
+																				class="m-datatable__body">
+																				<!----><!----><!---->
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Thanh
+																							Tran</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						Update Payment Item <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 06
+																						Sep 2026 16:08 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4=""><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">Attachments:
+																							</span><!---->
+																							<div _ngcontent-c4=""><span
+																									_ngcontent-c4="">-
+																									Add:
+																								</span><!----><a
+																									_ngcontent-c4=""
+																									target="_blank"
+																									href="https://finplanapi.saigontechnology.vn/api/file?key=ccef1aa5-996b-4c17-81f1-b2cceb982e3a">
+																									Invoice-HDBLZS6S-0003.pdf
+																								</a></div>
+																						</div><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Thanh
+																							Tran</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						Update Payment Item <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 06
+																						Sep 2026 16:08 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4=""><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">Attachments:
+																							</span><!---->
+																							<div _ngcontent-c4=""><span
+																									_ngcontent-c4="">-
+																									Add:
+																								</span><!----><a
+																									_ngcontent-c4=""
+																									target="_blank"
+																									href="https://finplanapi.saigontechnology.vn/api/file?key=311df3cd-75d2-4e35-b714-8a4ee7ce4c74">
+																									Receipt-2955-8835.pdf
+																								</a></div>
+																						</div><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Tony CFO
+																							Nguyen</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!----><!---->
+																						Completed <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!---->
+																						06 Sep 2026 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 06
+																						Sep 2026 15:01 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Tony CFO
+																							Nguyen</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!----><!---->
+																						Paid <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!---->
+																						06 Sep 2026 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 06
+																						Sep 2026 15:01 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Tony CFO
+																							Nguyen</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						Update Payment Item <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 06
+																						Sep 2026 15:01 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Tags :
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><span
+																									_ngcontent-c4="">
+																									Checked (#3100)
+																								</span><!----><!----><!----><!----></span>
+																						</div><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Hanh
+																							Truong</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!----><!---->
+																						Delivery Confirmed <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4=""
+																							class="item-status d-inline-block mt-2 confirmed-document">
+																							Confirmed Document </div>
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4=""
+																							class="item-status d-inline-block mt-2 review-approved">
+																							Approved </div>
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!---->
+																						04 Sep 2026 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 04
+																						Sep 2026 16:17 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Tony CFO
+																							Nguyen</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!----><!---->
+																						Delivery Confirmed <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4=""
+																							class="item-status d-inline-block mt-2 review-approved">
+																							Approved </div>
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!---->
+																						04 Sep 2026 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 04
+																						Sep 2026 14:14 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Tony CFO
+																							Nguyen</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						Update Payment Item <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 04
+																						Sep 2026 14:09 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Tags :
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><span
+																									_ngcontent-c4="">
+																									Không hoá đơn (#10)
+																									Nhật thanh toán
+																									(#3020)
+																									Software (#3038)
+																									M7272 (#3071)
+																									Waiting for bank
+																									statement (#3084)
+																									Ready for Auto
+																									Charge (#3099)
+																								</span><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Currency :
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><span
+																									_ngcontent-c4="">
+																									USD
+																								</span><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Equivalent VAT Amount:
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><!----><span
+																									_ngcontent-c4=""> 0
+																									VND
+																								</span><!----><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Equivalent PIT Amount:
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><!----><span
+																									_ngcontent-c4=""> 0
+																									VND
+																								</span><!----><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Equivalent Bank Fee:
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><!----><span
+																									_ngcontent-c4=""> 0
+																									VND
+																								</span><!----><!----><!----><!----><!----></span>
+																						</div><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Thanh
+																							Tran</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!----><!---->
+																						Delivery Confirmed <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!---->
+																						04 Sep 2026 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 04
+																						Sep 2026 08:22 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																				</tr>
+																				<tr _ngcontent-c4=""
+																					class="m-datatable__row">
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><span
+																							_ngcontent-c4="">Thanh
+																							Tran</span></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						Create Payment Item <!----></td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell">
+																						<!----><!----><!----><!----><!---->
+																						N/A
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----> 03
+																						Sep 2026 13:30 </td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell line-wrap">
+																						<!----><!----><!----><!---->
+																					</td>
+																					<td _ngcontent-c4=""
+																						class="m-datatable__cell cell-white-space-nowrap">
+																						<!----><!----><!----><!----><!----><!----><!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Part :
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><span
+																									_ngcontent-c4="">
+																									Renew Sep/2026
+																								</span><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Estimated Date:
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!---->
+																								06 Sep 2026
+																								<!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Currency :
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><span
+																									_ngcontent-c4="">
+																									USD
+																								</span><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><!----><!----><!---->
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Amount :
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!---->
+																								10.00 USD <!----><span
+																									_ngcontent-c4="">(269,268.00
+																									VND)</span><!----><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">VAT
+																							</span><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">Amount:
+																							</span><!----><!----><span
+																								_ngcontent-c4=""><!---->
+																								0 USD <!----><span
+																									_ngcontent-c4="">()</span><!----><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">PIT
+																							</span><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">Amount:
+																							</span><!----><!----><span
+																								_ngcontent-c4=""><!---->
+																								0 USD <!----><span
+																									_ngcontent-c4="">()</span><!----><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Bank Fee:
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!---->
+																								0 USD <!----><span
+																									_ngcontent-c4="">()</span><!----><!----><!----><!----><!----></span>
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><!----><!----><!---->
+																						</div>
+																						<!----><!----><!----><!---->
+																						<div _ngcontent-c4="">
+																							<!----><!----><span
+																								_ngcontent-c4=""
+																								class="font-weight-bold">
+																								Auto Confirm Delivery:
+																							</span><!----><!----><!----><span
+																								_ngcontent-c4=""><!----><span
+																									_ngcontent-c4=""> No
+																								</span><!----><!----><!----><!----></span>
+																						</div><!----><!---->
+																					</td>
+																				</tr><!----><!---->
+																			</tbody>
+																		</table>
+																	</div>
+																</div>
+															</div>
+														</div>
+													</div>
+													<div _ngcontent-c4="" class="row"><!---->
+														<div _ngcontent-c4="" class="col-12"><button _ngcontent-c4=""
+																class="btn btn-primary mr-3" type="button"><i
+																	_ngcontent-c4="" class="fa fa-save"></i> Save
+															</button><button _ngcontent-c4=""
+																class="btn btn-primary mr-3" type="button"><i
+																	_ngcontent-c4="" class="fa fa-save"></i> Save &amp;
+																Close </button><button _ngcontent-c4=""
+																class="btn btn-default mr-3" type="button"><i
+																	_ngcontent-c4="" aria-hidden="true"
+																	class="fa fa-trash"></i> Cancel </button></div>
+													</div>
+												</form>
+											</div><!----><!---->
+										</app-payment-item-form></div>
+								</div>
+							</div>
+						</div>
+					</app-payment-item-update></div>
+			</div>
+		</div><!---->
+	</app-root>
+	<script type="text/javascript" src="runtime.e31b5e5d8e35006d8ec8.js"></script>
+	<script type="text/javascript" src="polyfills.3c17ffee1d736ade314d.js"></script>
+	<script type="text/javascript" src="scripts.d1bbeb2f186df75bb0d8.js"></script>
+	<script type="text/javascript" src="main.6a1e75872c4f8070d655.js"></script>
+
+	<iframe width="0" height="0" src="https://identity.saigontechnology.vn/connect/checksession"
+		style="visibility: hidden; position: absolute; display: none;"></iframe><iframe width="0" height="0"
+		src="https://identity.saigontechnology.vn/connect/checksession"
+		style="visibility: hidden; position: absolute; display: none;"></iframe><iframe width="0" height="0"
+		src="https://identity.saigontechnology.vn/connect/checksession"
+		style="visibility: hidden; position: absolute; display: none;"></iframe>
+</body>
+
+</html>
