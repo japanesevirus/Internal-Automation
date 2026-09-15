@@ -356,7 +356,7 @@ unsafeWindow.FinplanUtils = {
  */
 (function () {
     // Số nút tối đa hiển thị trực tiếp (bao gồm cả nút "More" nếu có tràn)
-    var MAX_VISIBLE_BUTTONS = 3;
+    var MAX_VISIBLE_BUTTONS = 4;
 
     // Map<id, { icon, text, tooltip, onClick, visible, order }>
     var buttonRegistry = new Map();
