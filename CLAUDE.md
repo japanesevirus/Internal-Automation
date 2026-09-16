@@ -31,7 +31,7 @@ There is no build system, package manager, test suite, or git repository. Each f
 **Getting a reference to `FinplanUtils` — one pattern, in all five consumers.** The shared library exposes no readiness hook (and one wouldn't help — Tampermonkey doesn't guarantee inter-script load order), so every consumer polls:
 - Holds it in module-scope `let utils = null;`.
 - Populates it via an identical local helper `waitForFinplanUtils(timeout = 15000)` (polls `unsafeWindow.FinplanUtils` every 100 ms; rejects with `Không tìm thấy FinplanUtils (Finplan_Shared_Library chưa được nạp hoặc đang tắt).`).
-- Does all `utils.*` work only *after* the `await` resolves. The three list-page scripts wrap their bottom `setInterval(checkUrl, 2000); checkUrl();` in an `(async () => { try { utils = await waitForFinplanUtils(); } catch (err) { console.error('[<name>]', err.message); return; } … })();` IIFE; `PoP_Auto_Approve` and `Mark_Auto-Charge_Items_Paid` `await` inside their `async function init()`.
+- Does all `utils.*` work only *after* the `await` resolves. The three list-page scripts wrap their bottom `setInterval(checkUrl, 2000); checkUrl();` in an `(async () => { try { utils = await waitForFinplanUtils(); } catch (err) { console.error('[<name>]', err.message); return; } … })();` IIFE; `PoP_Auto_Approve` and `Mark_Items_Completed` `await` inside their `async function init()`.
 - New or reworked consumer scripts must copy this helper verbatim and follow the same shape. (`Copy_Part_Column.user.js` doesn't use `FinplanUtils` at all.)
 
 ### Common structure of the bulk-action scripts
@@ -50,7 +50,7 @@ The finplan app never does a full page load on route change. Scripts that should
 
 ### Notable per-script differences
 
-- **`Mark_Auto-Charge_Items_Paid.user.js`** is the outlier. It persists full job state to `localStorage` (`fpmp_autocharge_job_v1`: `{ids, index, stopped, log[]}`) so a run survives the page reloads it triggers while navigating item detail pages built from `BASE_URL`. Each item has three independent stages (`tag`, `paid`, `postCheck`), each recorded separately. It moves the tag `Ready for Auto Charge` → `Ready for Auto Charge ► Checked`.
+- **`Mark_Items_Completed.user.js`** is the outlier. It persists full job state to `localStorage` (`fpmp_autocharge_job_v1`: `{ids, index, stopped, autoChargeOnly, log[]}`) so a run survives the page reloads it triggers while navigating item detail pages built from `BASE_URL`. Each item has three independent stages (`tag`, `paid`, `postCheck`), each recorded separately. It moves the tag `Ready for Auto Charge` → `Ready for Auto Charge ► Checked`. `autoChargeOnly` (from an input-dialog checkbox, default checked) controls whether stages 2/3 (`paid`, `postCheck`) are gated on stage 1 (`tag`) succeeding — checked reproduces the original auto-charge-only flow; unchecked always runs stages 2/3 regardless of whether the item has the tag or stage 1 errored.
 - **`Mark_All_as_Paid_Clean_Quotes.user.js`** bundles two unrelated features: the bulk "Paid" / "Cash Advanced" loop (rows tagged `Tạm ứng` get "Cash Advanced" instead of "Paid"), and a small "Clean Quotes" button injected next to the search box that strips stray `"` characters from pasted item codes and re-triggers search. Only the first uses the Button Manager.
 
 ### Recurring DOM selectors in the target apps

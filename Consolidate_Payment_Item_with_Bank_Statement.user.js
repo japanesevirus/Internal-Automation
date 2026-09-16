@@ -328,7 +328,7 @@
      * Tìm 1 nút bấm trong 1 hộp thoại xác nhận, so khớp CHÍNH XÁC text hiển thị (đã trim).
      * Hệ thống dùng nhiều component modal khác nhau; ở script này chỉ cần modal xác nhận Save
      * là `app-sts-confirm-modal` (nút "Yes"), nhưng vẫn giữ tham số rootSelector để nhất quán
-     * với Mark_Auto-Charge_Items_Paid và dễ mở rộng.
+     * với Mark_Items_Completed và dễ mở rộng.
      *
      * @param {string} rootSelector - selector của component modal (ví dụ 'app-sts-confirm-modal')
      * @param {string} exactText - text hiển thị cần khớp chính xác trên nút (ví dụ 'Yes')

@@ -31,7 +31,7 @@
      *   3) FLOATING DIALOG TIẾN TRÌNH (renderDialog và các hàm build*): hộp thoại kéo-thả
      *      được, hiển thị bảng trạng thái từng PO (Đang xử lý/Success/Lỗi) kèm nút
      *      Dừng lại / Ẩn cửa sổ / Đóng, phỏng theo đúng mô hình dialog đã dùng trong
-     *      Approve_All_Items.user.js / Mark_Auto-Charge_Items_Paid.user.js để đồng bộ
+     *      Approve_All_Items.user.js / Mark_Items_Completed.user.js để đồng bộ
      *      trải nghiệm giữa các tool.
      * ============================================================================
      */
@@ -367,7 +367,7 @@
     }
 
     /* =========================================================================
-     *  FLOATING DIALOG TIẾN TRÌNH (phỏng theo Approve_All_Items.user.js / Mark_Auto-Charge_Items_Paid.user.js)
+     *  FLOATING DIALOG TIẾN TRÌNH (phỏng theo Approve_All_Items.user.js / Mark_Items_Completed.user.js)
      * ========================================================================= */
 
     /** Chèn CSS cho dialog vào <head>, chỉ chèn 1 lần (idempotent). */

@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Mark Auto-Charge Items Paid
+// @name         Mark Items Completed
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  Tự động chuyển tag "Ready for Auto Charge" -> "Ready for Auto Charge ► Checked" hàng loạt cho danh sách Payment Item
+// @version      1.2
+// @description  Tự động bấm Paid / Post Check Done hàng loạt cho danh sách Payment Item; có tuỳ chọn chỉ áp dụng cho item đang có tag "Ready for Auto Charge" (kèm đổi tag sang "Ready for Auto Charge ► Checked") hoặc áp dụng cho mọi item bất kể tag.
 // @author       Gemini AI
 // @match        https://finplan.saigontechnology.vn/*
 // @grant        unsafeWindow
@@ -57,6 +57,11 @@
     /* =========================================================================
      *  Job state (localStorage) - dùng để "sống sót" qua các lần reload trang
      *  { ids: string[], index: number, stopped: boolean, createdAt: number,
+     *    autoChargeOnly: boolean,  // giá trị checkbox "Auto-Charge Item only" lúc bấm "Bắt đầu".
+     *      true (mặc định)  = giữ nguyên hành vi gốc: item không có tag TAG_SOURCE (hoặc giai đoạn
+     *                         1 lỗi) thì giai đoạn 2 (Paid) và 3 (Post Check Done) bị skip theo.
+     *      false            = giai đoạn 2, 3 LUÔN được chạy cho mọi item, bất kể item có tag
+     *                         TAG_SOURCE hay không, và bất kể giai đoạn 1 skip/lỗi hay thành công.
      *    log: [{
      *      id: string,
      *      status: 'pending'|'processing'|'success'|'skipped'|'error',  // trạng thái tổng của item
@@ -280,25 +285,28 @@
      * `'pending' | 'skipped' | 'success' | 'error'` kèm message cụ thể:
      *
      *   1. `tag`       - Đọc trạng thái tag hiện tại (không cần mở dropdown). Nếu KHÔNG có tag
-     *                    "Ready for Auto Charge" -> 'skipped', dừng hẳn (giai đoạn 2 và 3 cũng được
-     *                    đánh dấu 'skipped' theo, không làm gì thêm). Nếu CÓ -> mở dropdown, bỏ chọn
+     *                    "Ready for Auto Charge" -> 'skipped'. Nếu CÓ -> mở dropdown, bỏ chọn
      *                    tag nguồn, chọn tag đích (nếu chưa có), đóng dropdown, bấm Save, xử lý hộp
      *                    thoại "Update Confirm" (nút "Yes"), rồi đọc kết quả từ toast.
-     *   2. `paid`      - CHỈ chạy nếu giai đoạn 1 kết thúc bằng 'success' (không chạy nếu 'skipped'
-     *                    hay 'error'). Tìm nút "Paid" trên form; không thấy -> 'skipped' (hợp lệ,
-     *                    tuỳ trạng thái item). Thấy -> bấm, xử lý hộp thoại "Change Status To Paid"
-     *                    (nút "Confirm"), đọc kết quả.
-     *   3. `postCheck` - CHỈ chạy nếu giai đoạn 2 KHÔNG lỗi (có thể là 'success' hoặc 'skipped').
-     *                    Tìm nút "Post Check Done"; không thấy -> 'skipped'. Thấy -> bấm, xử lý hộp
+     *   2. `paid`      - Tìm nút "Paid" trên form; không thấy -> 'skipped' (hợp lệ, tuỳ trạng thái
+     *                    item). Thấy -> bấm, xử lý hộp thoại "Change Status To Paid" (nút "Confirm"),
+     *                    đọc kết quả.
+     *   3. `postCheck` - Tìm nút "Post Check Done"; không thấy -> 'skipped'. Thấy -> bấm, xử lý hộp
      *                    thoại xác nhận CÙNG LOẠI với bước Paid (`app-change-status-payment-modal`,
      *                    nút "Confirm" - KHÁC với modal "Update Confirm" của bước Save), đọc kết quả.
      *
-     * Nguyên tắc "chuỗi domino": bất kỳ giai đoạn nào bị 'error' sẽ khiến các giai đoạn SAU nó được
-     * đánh dấu 'skipped' kèm lý do (không cố chạy tiếp), và toàn bộ item (`entry.status`) được đánh
-     * dấu 'error' - dù các giai đoạn TRƯỚC đó đã 'success'. Ngược lại nếu không giai đoạn nào lỗi,
-     * `entry.status` = 'skipped' (khi giai đoạn 1 skip) hoặc 'success' (các trường hợp còn lại).
+     * `job.autoChargeOnly` (checkbox "Auto-Charge Item only" lúc bắt đầu job) quyết định giai đoạn
+     * 2, 3 có bị GATE theo kết quả giai đoạn 1 hay không:
+     *   - `true` (mặc định) - nguyên tắc "chuỗi domino": nếu item không có tag nguồn, hoặc giai
+     *     đoạn 1 kết thúc 'error', thì giai đoạn 2 và 3 bị đánh dấu 'skipped' theo, KHÔNG chạy, và
+     *     hàm return sớm (không tìm nút Paid / Post Check Done).
+     *   - `false` - giai đoạn 2, 3 LUÔN được chạy tiếp, bất kể item có tag nguồn hay không và bất
+     *     kể giai đoạn 1 'skipped'/'error'/'success'. Logic xử lý DOM của giai đoạn 1 khi item CÓ
+     *     tag nguồn không đổi - chỉ bỏ phần gate chặn giai đoạn sau.
+     *
      * Dù giai đoạn nào lỗi, hàm KHÔNG throw ra ngoài - job vẫn luôn tiếp tục sang item kế tiếp
-     * thông qua advanceJob() ở cuối hàm.
+     * thông qua advanceJob() ở cuối hàm. `entry.status` tổng hợp từ cả 3 `entry.stages` sau khi xử
+     * lý xong: 'error' nếu có bất kỳ giai đoạn nào lỗi, 'skipped' nếu CẢ 3 đều skip, còn lại 'success'.
      */
     async function processCurrentItem() {
         const job = loadJob();
@@ -306,6 +314,9 @@
 
         const id = job.ids[job.index];
         const entry = job.log.find((e) => e.id === id);
+        // true (mặc định) = giữ nguyên hành vi gốc: item không có tag nguồn / giai đoạn 1 lỗi thì
+        // giai đoạn 2, 3 bị skip theo. false = luôn chạy giai đoạn 2, 3 bất kể giai đoạn 1.
+        const requireAutoChargeTag = job.autoChargeOnly !== false;
         entry.status = 'processing';
         saveJob(job);
         renderModal();
@@ -342,7 +353,8 @@
         if (isStopNow()) { bailStopNow(); return; }
 
         // ================= GIAI ĐOẠN 1: Tìm, xử lý tag và bấm Save ================= //
-        let tagOk = false; // true nếu giai đoạn 1 kết thúc 'success' (không phải 'skipped'/'error')
+        let tagOk = false; // true nếu giai đoạn 1 kết thúc 'success' hoặc 'skipped' (không phải 'error')
+        let hasSourceTag = false; // item có tag nguồn hay không (dùng để chọn message ở bước gate bên dưới)
         try {
             // Khoảng nghỉ nhỏ để Angular kịp hoàn tất render ban đầu sau khi trang vừa load.
             await utils.sleep(400);
@@ -357,99 +369,107 @@
             const selectedTexts = getSelectedTagTexts(dropdownRoot);
             const hasSource = selectedTexts.includes(TAG_SOURCE);
             const hasTargetAlready = selectedTexts.includes(TAG_TARGET);
+            hasSourceTag = hasSource;
 
-            // Không có tag nguồn -> không có gì để đổi, bỏ qua toàn bộ item (không Save, không Paid,
-            // không Post Check Done).
             if (!hasSource) {
+                // Không có tag nguồn -> không có gì để đổi ở giai đoạn 1. Việc này có chặn giai đoạn
+                // 2, 3 hay không do khối gate bên dưới (sau try/catch) quyết định dựa trên
+                // requireAutoChargeTag, KHÔNG return ở đây để còn rơi xuống giai đoạn 2, 3 khi cần.
                 setStage('tag', 'skipped', `Không có tag "${TAG_SOURCE}" nên bỏ qua.`);
-                setStage('paid', 'skipped', 'Bỏ qua vì giai đoạn 1 (Tag & Save) đã bỏ qua.');
-                setStage('postCheck', 'skipped', 'Bỏ qua vì giai đoạn 1 (Tag & Save) đã bỏ qua.');
-                entry.status = 'skipped';
-                persist();
-                advanceJob(job);
-                return;
-            }
+                tagOk = true; // Không phải lỗi - chỉ là không áp dụng cho item này.
+            } else {
+                // Mở dropdown Tags để có thể thao tác trên checkbox bên trong.
+                const control = dropdownRoot.querySelector('.control');
+                utils.simulateClick(control);
+                await utils.waitForElement([`${dropdownRootSelector} .content .selected`], 10000);
+                await utils.sleep(250);
 
-            // Mở dropdown Tags để có thể thao tác trên checkbox bên trong.
-            const control = dropdownRoot.querySelector('.control');
-            utils.simulateClick(control);
-            await utils.waitForElement([`${dropdownRootSelector} .content .selected`], 10000);
-            await utils.sleep(250);
-
-            // Bỏ chọn tag nguồn ("Ready for Auto Charge").
-            const removed = setTagChecked(dropdownRoot, TAG_SOURCE, false);
-            if (!removed) throw new Error(`Không tìm thấy tag "${TAG_SOURCE}" để bỏ chọn (dropdown).`);
-            await utils.sleep(300);
-
-            // Chọn tag đích ("Ready for Auto Charge ► Checked"), chỉ khi chưa có sẵn.
-            if (!hasTargetAlready) {
-                const checked = setTagChecked(dropdownRoot, TAG_TARGET, true);
-                if (!checked) throw new Error(`Không tìm thấy tag "${TAG_TARGET}" để chọn.`);
+                // Bỏ chọn tag nguồn ("Ready for Auto Charge").
+                const removed = setTagChecked(dropdownRoot, TAG_SOURCE, false);
+                if (!removed) throw new Error(`Không tìm thấy tag "${TAG_SOURCE}" để bỏ chọn (dropdown).`);
                 await utils.sleep(300);
-            }
 
-            // Đóng dropdown (bấm lại vào .control để toggle đóng).
-            utils.simulateClick(control);
-            await utils.sleep(300);
+                // Chọn tag đích ("Ready for Auto Charge ► Checked"), chỉ khi chưa có sẵn.
+                if (!hasTargetAlready) {
+                    const checked = setTagChecked(dropdownRoot, TAG_TARGET, true);
+                    if (!checked) throw new Error(`Không tìm thấy tag "${TAG_TARGET}" để chọn.`);
+                    await utils.sleep(300);
+                }
 
-            // Bấm nút Save (không phải Save & Close).
-            const saveBtn = findSaveButton();
-            if (!saveBtn) throw new Error('Không tìm thấy nút Save.');
-            utils.simulateClick(saveBtn);
+                // Đóng dropdown (bấm lại vào .control để toggle đóng).
+                utils.simulateClick(control);
+                await utils.sleep(300);
 
-            // Mỗi lần Save đều hiện hộp thoại xác nhận "Update Confirm" -> chờ nó xuất hiện.
-            await utils.waitForElement(['app-sts-confirm-modal'], 15000);
+                // Bấm nút Save (không phải Save & Close).
+                const saveBtn = findSaveButton();
+                if (!saveBtn) throw new Error('Không tìm thấy nút Save.');
+                utils.simulateClick(saveBtn);
 
-            // Nghỉ ~500ms trước khi bấm nút xác nhận, đảm bảo trang có đủ thời gian bind xong
-            // event handler cho các nút trong hộp thoại (tránh trường hợp bấm quá sớm, ngay khi
-            // modal vừa hiện ra nhưng Angular chưa kịp gắn (click) handler cho nút "Yes").
-            await utils.sleep(500);
+                // Mỗi lần Save đều hiện hộp thoại xác nhận "Update Confirm" -> chờ nó xuất hiện.
+                await utils.waitForElement(['app-sts-confirm-modal'], 15000);
 
-            const yesBtn = findConfirmModalButton('app-sts-confirm-modal', 'Yes');
-            if (!yesBtn) throw new Error('Không tìm thấy nút "Yes" trong hộp thoại xác nhận.');
-            utils.simulateClick(yesBtn);
-
-            // Chờ hộp thoại xác nhận biến mất. Không coi timeout ở đây là lỗi fatal (không throw) vì
-            // trên thực tế đã ghi nhận trường hợp modal không được phát hiện là "đã đóng" dù server
-            // đã xử lý Save thành công - tín hiệu đáng tin cậy hơn là toast Success/Error bên dưới.
-            let confirmModalNote = '';
-            await utils.waitForElementToDisappear(['app-sts-confirm-modal'], 15000).catch(() => {
-                confirmModalNote = ' (Lưu ý: hộp thoại xác nhận không phát hiện đã đóng, nhưng vẫn tiếp tục theo dõi kết quả lưu.)';
-            });
-
-            // Chờ overlay loading (nếu có) biến mất - không fatal nếu không phát hiện được.
-            await utils.waitForLoadingToComplete('.box-loading', 30000).catch(() => {});
-
-            // Đọc kết quả từ toast Success/Error do hệ thống hiển thị sau khi lưu.
-            let tagStatus = 'success';
-            let tagMessage = 'Đã lưu thành công.';
-            try {
-                const respEl = await utils.waitForServerResponse(15000);
-                const isError = respEl.classList.contains('toast-error');
-                const text = normalizeText(respEl.querySelector('.toast-message')?.textContent)
-                    || normalizeText(respEl.querySelector('.toast-title')?.textContent);
-                tagMessage = text || tagMessage;
-                if (isError) tagStatus = 'error';
+                // Nghỉ ~500ms trước khi bấm nút xác nhận, đảm bảo trang có đủ thời gian bind xong
+                // event handler cho các nút trong hộp thoại (tránh trường hợp bấm quá sớm, ngay khi
+                // modal vừa hiện ra nhưng Angular chưa kịp gắn (click) handler cho nút "Yes").
                 await utils.sleep(500);
-            } catch (e) {
-                // Không phát hiện được toast trong thời gian chờ - không coi là lỗi, chỉ ghi chú lại.
-                tagMessage = 'Đã bấm Save nhưng không phát hiện thông báo phản hồi (giả định thành công).';
-            }
 
-            setStage('tag', tagStatus, tagMessage + confirmModalNote);
-            tagOk = tagStatus !== 'error';
+                const yesBtn = findConfirmModalButton('app-sts-confirm-modal', 'Yes');
+                if (!yesBtn) throw new Error('Không tìm thấy nút "Yes" trong hộp thoại xác nhận.');
+                utils.simulateClick(yesBtn);
+
+                // Chờ hộp thoại xác nhận biến mất. Không coi timeout ở đây là lỗi fatal (không throw) vì
+                // trên thực tế đã ghi nhận trường hợp modal không được phát hiện là "đã đóng" dù server
+                // đã xử lý Save thành công - tín hiệu đáng tin cậy hơn là toast Success/Error bên dưới.
+                let confirmModalNote = '';
+                await utils.waitForElementToDisappear(['app-sts-confirm-modal'], 15000).catch(() => {
+                    confirmModalNote = ' (Lưu ý: hộp thoại xác nhận không phát hiện đã đóng, nhưng vẫn tiếp tục theo dõi kết quả lưu.)';
+                });
+
+                // Chờ overlay loading (nếu có) biến mất - không fatal nếu không phát hiện được.
+                await utils.waitForLoadingToComplete('.box-loading', 30000).catch(() => {});
+
+                // Đọc kết quả từ toast Success/Error do hệ thống hiển thị sau khi lưu.
+                let tagStatus = 'success';
+                let tagMessage = 'Đã lưu thành công.';
+                try {
+                    const respEl = await utils.waitForServerResponse(15000);
+                    const isError = respEl.classList.contains('toast-error');
+                    const text = normalizeText(respEl.querySelector('.toast-message')?.textContent)
+                        || normalizeText(respEl.querySelector('.toast-title')?.textContent);
+                    tagMessage = text || tagMessage;
+                    if (isError) tagStatus = 'error';
+                    await utils.sleep(500);
+                } catch (e) {
+                    // Không phát hiện được toast trong thời gian chờ - không coi là lỗi, chỉ ghi chú lại.
+                    tagMessage = 'Đã bấm Save nhưng không phát hiện thông báo phản hồi (giả định thành công).';
+                }
+
+                setStage('tag', tagStatus, tagMessage + confirmModalNote);
+                tagOk = tagStatus !== 'error';
+            }
         } catch (err) {
             setStage('tag', 'error', (err && err.message) || String(err));
             tagOk = false;
         }
         persist();
 
-        if (!tagOk) {
-            // Giai đoạn 1 skip hoặc lỗi -> không chạy tiếp giai đoạn 2, 3. Trường hợp 'skipped' đã
-            // return sớm ở trên (kèm set stage 2/3), nên tới đây chắc chắn là do LỖI.
+        // ================= GATE: giai đoạn 2, 3 có bị chặn theo kết quả giai đoạn 1 hay không ================= //
+        // Chỉ áp dụng khi requireAutoChargeTag (checkbox "Auto-Charge Item only" đang được check).
+        // Khi không check, giai đoạn 2, 3 LUÔN chạy tiếp bất kể giai đoạn 1 skip/lỗi/thành công.
+        if (requireAutoChargeTag && !tagOk) {
+            // Tới đây chắc chắn là do LỖI thật (trường hợp !hasSource đã set tagOk = true ở trên).
             setStage('paid', 'skipped', 'Bỏ qua vì giai đoạn 1 (Tag & Save) bị lỗi.');
             setStage('postCheck', 'skipped', 'Bỏ qua vì giai đoạn 1 (Tag & Save) bị lỗi.');
             entry.status = 'error';
+            persist();
+            advanceJob(job);
+            return;
+        }
+        if (requireAutoChargeTag && !hasSourceTag) {
+            // Không có tag nguồn -> không áp dụng cho item này, bỏ qua toàn bộ (hành vi gốc).
+            setStage('paid', 'skipped', 'Bỏ qua vì giai đoạn 1 (Tag & Save) đã bỏ qua.');
+            setStage('postCheck', 'skipped', 'Bỏ qua vì giai đoạn 1 (Tag & Save) đã bỏ qua.');
+            entry.status = 'skipped';
             persist();
             advanceJob(job);
             return;
@@ -585,11 +605,19 @@
 
                 setStage('postCheck', 'success', postCheckMessage + postCheckModalNote);
             }
-            entry.status = 'success';
         } catch (err) {
             setStage('postCheck', 'error', (err && err.message) || String(err));
-            entry.status = 'error';
         }
+
+        // Tổng hợp trạng thái item từ cả 3 giai đoạn: 'error' nếu có bất kỳ giai đoạn nào lỗi,
+        // 'skipped' nếu CẢ 3 đều skip (ví dụ: không có tag nguồn + không tìm thấy Paid/Post Check
+        // Done khi requireAutoChargeTag = false), còn lại là 'success'.
+        const stageStatuses = Object.values(entry.stages).map((s) => s.status);
+        entry.status = stageStatuses.includes('error')
+            ? 'error'
+            : stageStatuses.every((s) => s === 'skipped')
+                ? 'skipped'
+                : 'success';
         persist();
 
         advanceJob(job);
@@ -671,6 +699,9 @@
                 border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 13px;
             }
             .fpmp-hint { font-size: 12px; color: #888; margin-top: 6px; }
+            .fpmp-checkbox-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; }
+            .fpmp-checkbox-row input[type="checkbox"] { margin-top: 3px; }
+            .fpmp-checkbox-row label { font-size: 13px; color: #333; cursor: pointer; }
             .fpmp-btn {
                 border: none; border-radius: 4px; padding: 8px 16px;
                 font-size: 13px; font-weight: 600; cursor: pointer;
@@ -836,7 +867,7 @@
         header.className = 'fpmp-modal__header';
         header.addEventListener('mousedown', onHeaderMouseDown);
         const title = document.createElement('h3');
-        title.textContent = 'Mark Paid Auto-Charge Items';
+        title.textContent = 'Mark Items Completed';
         header.appendChild(title);
         const closeBtn = document.createElement('button');
         closeBtn.className = 'fpmp-modal__close';
@@ -912,6 +943,25 @@
                 : '';
         });
 
+        // Checkbox "Auto-Charge Item only" - mặc định CHECK (giữ hành vi gốc: chỉ xử lý item có tag
+        // "Ready for Auto Charge"). Bỏ check để công cụ chạy Paid / Post Check Done cho MỌI item
+        // trong danh sách, bất kể item đó có tag này hay không.
+        const checkboxRow = document.createElement('div');
+        checkboxRow.className = 'fpmp-checkbox-row';
+        const checkboxId = 'fpmp-auto-charge-only';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = checkboxId;
+        checkbox.checked = true;
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.htmlFor = checkboxId;
+        checkboxLabel.innerHTML = '<b>Auto-Charge Item only</b> — chỉ xử lý item đang có tag '
+            + `"${TAG_SOURCE}" (đổi sang "${TAG_TARGET}" trước khi Paid / Post Check Done). `
+            + 'Bỏ chọn để vẫn Paid / Post Check Done cho item không có tag này.';
+        checkboxRow.appendChild(checkbox);
+        checkboxRow.appendChild(checkboxLabel);
+        body.appendChild(checkboxRow);
+
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'fpmp-btn fpmp-btn--default';
         cancelBtn.type = 'button';
@@ -929,7 +979,7 @@
                 alert('Không nhận diện được payment item id nào. Vui lòng kiểm tra lại.');
                 return;
             }
-            startJob(ids);
+            startJob(ids, checkbox.checked);
         });
         footer.appendChild(startBtn);
     }
@@ -1094,8 +1144,10 @@
      * Khởi tạo 1 job mới từ danh sách id đã parse: lưu job vào localStorage, chuyển modal sang
      * chế độ tiến trình, rồi bắt đầu xử lý item đầu tiên - hoặc điều hướng sang trang edit của
      * item đầu tiên nếu trang hiện tại chưa đúng (ví dụ user bấm "Bắt đầu" ngay tại trang chủ).
+     * @param {string[]} ids - danh sách payment item id đã parse.
+     * @param {boolean} autoChargeOnly - giá trị checkbox "Auto-Charge Item only" lúc bấm "Bắt đầu".
      */
-    function startJob(ids) {
+    function startJob(ids, autoChargeOnly) {
         // Xoá job cũ (nếu còn) trước khi dựng job mới, để merge cờ `stopped` trong saveJob()
         // không vô tình khiến job mới bị đánh dấu đã dừng ngay từ đầu.
         clearJob();
@@ -1105,6 +1157,7 @@
             index: 0,
             stopped: false,
             stopMode: null,   // null | 'now' | 'after-current' - đặt khi user bấm "Dừng lại"
+            autoChargeOnly: autoChargeOnly !== false,
             createdAt: Date.now(),
             log: ids.map((id) => ({
                 id,
@@ -1152,7 +1205,7 @@
         try {
             utils = await waitForFinplanUtils();
         } catch (e) {
-            console.error('[Mark Paid Auto-Charge Items]', e.message);
+            console.error('[Mark Items Completed]', e.message);
             return;
         }
 
@@ -1162,8 +1215,8 @@
         // thư viện coi đây là cập nhật, không tạo nút trùng.
         utils.registerButton('mark-auto-charge-paid', {
             icon: '📋',
-            text: 'Mark Auto-Charge Item Paid',
-            tooltip: 'Mark Auto-Charge Item Paid',
+            text: 'Mark Items Completed',
+            tooltip: 'Mark Items Completed',
             onClick: onFabClick,
         });
 
