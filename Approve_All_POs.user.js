@@ -68,7 +68,7 @@
      *   - Loại trừ khi tìm PO tiếp theo (không bao giờ chọn lại 1 PO đã có mặt trong danh
      *     sách này, kể cả khi PO đó vừa xử lý lỗi - PO lỗi sẽ không được tự động thử lại
      *     trong cùng lượt chạy).
-     * Mỗi entry: { poNumber: string, status: 'processing'|'success'|'error', message: string }
+     * Mỗi entry: { poNumber: string, editUrl: string|null, status: 'processing'|'success'|'error', message: string }
      */
     let poLog = [];
 
@@ -151,6 +151,16 @@
         return targetTd.lastChild?.textContent.trim() || null;
     }
 
+    /**
+     * Lấy link trang edit PO từ nút Edit (fa-edit) trong column action của thẻ <tr>.
+     * @param {HTMLElement} trElement - Thẻ <tr> chứa thông tin hàng.
+     * @returns {string|null} - URL tuyệt đối (ví dụ: ".../purchase-orders/update/35706") hoặc null.
+     */
+    function getPOEditUrlFromRow(trElement) {
+        const link = trElement?.querySelector('a[href*="/purchase-orders/update/"]');
+        return link?.href || null;
+    }
+
     /** Kiểm tra xem nút có nằm trong row chứa nhãn "Waiting for CFO & Accountant" không. */
     function isRowWaitingForCFO(btn) {
         const badge = utils.findElementInSameRow(
@@ -169,7 +179,7 @@
      * mà dòng chứa nó đang ở trạng thái "Waiting for CFO" VÀ mã PO tương ứng CHƯA có mặt trong
      * `poLog` (tức chưa được xử lý ở lượt chạy này).
      *
-     * @returns {{ approveBtn: HTMLElement, poNumber: string|null, reviewSupplierBtn: HTMLElement|null } | null}
+     * @returns {{ approveBtn: HTMLElement, poNumber: string|null, editUrl: string|null, reviewSupplierBtn: HTMLElement|null } | null}
      */
     function findNextApproveTarget() {
         const buttons = document.querySelectorAll('button, a, input, .btn');
@@ -179,7 +189,8 @@
             if (btn.offsetParent === null) continue;
             if (!isRowWaitingForCFO(btn)) continue;
 
-            const poNumber = getPOCodeFromRow(utils.findAncestorRow(btn));
+            const row = utils.findAncestorRow(btn);
+            const poNumber = getPOCodeFromRow(row);
             if (poLog.some((entry) => entry.poNumber === poNumber)) continue;
 
             const reviewSupplierBtn = utils.findElementInSameRow(
@@ -188,7 +199,7 @@
                 'TD'
             );
 
-            return { approveBtn: btn, poNumber, reviewSupplierBtn };
+            return { approveBtn: btn, poNumber, editUrl: getPOEditUrlFromRow(row), reviewSupplierBtn };
         }
         return null;
     }
@@ -317,7 +328,7 @@
                 break;
             }
 
-            const entry = { poNumber: target.poNumber, status: 'processing', message: '' };
+            const entry = { poNumber: target.poNumber, editUrl: target.editUrl, status: 'processing', message: '' };
             poLog.push(entry);
             renderDialog();
 
@@ -581,7 +592,17 @@
         const tr = document.createElement('tr');
 
         const tdId = document.createElement('td');
-        tdId.textContent = entry.poNumber ?? '(không rõ mã PO)';
+        const idText = entry.poNumber ?? '(không rõ mã PO)';
+        if (entry.editUrl) {
+            const link = document.createElement('a');
+            link.href = entry.editUrl;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = idText;
+            tdId.appendChild(link);
+        } else {
+            tdId.textContent = idText;
+        }
         tr.appendChild(tdId);
 
         const tdStatus = document.createElement('td');
