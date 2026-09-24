@@ -68,7 +68,7 @@
      *   - Loại trừ khi tìm PO tiếp theo (không bao giờ chọn lại 1 PO đã có mặt trong danh
      *     sách này, kể cả khi PO đó vừa xử lý lỗi - PO lỗi sẽ không được tự động thử lại
      *     trong cùng lượt chạy).
-     * Mỗi entry: { poNumber: string, editUrl: string|null, status: 'processing'|'success'|'error', message: string }
+     * Mỗi entry: { poNumber: string, editUrl: string|null, contract: DocumentFragment|null, status: 'processing'|'success'|'error', message: string }
      */
     let poLog = [];
 
@@ -161,6 +161,31 @@
         return link?.href || null;
     }
 
+    /**
+     * Sao chép nội dung ô "Contract No" (giữ cả link) của thẻ <tr>. Phải lấy ngay lúc tìm thấy
+     * PO vì sau khi duyệt, dòng có thể biến khỏi bảng.
+     * @param {HTMLElement} trElement - Thẻ <tr> chứa thông tin hàng.
+     * @returns {DocumentFragment|null} - Bản sao nội dung ô (link mở tab mới) hoặc null nếu không có.
+     */
+    function getContractFromRow(trElement) {
+        const headers = trElement?.closest('table')?.querySelectorAll('thead th');
+        if (!headers) return null;
+
+        const colIndex = Array.from(headers)
+            .findIndex((th) => th.textContent.replace(/\s+/g, ' ').trim().toLowerCase().includes('contract no'));
+        const cell = colIndex >= 0 ? trElement.cells[colIndex] : null;
+        if (!cell || !cell.textContent.trim()) return null;
+
+        const fragment = document.createDocumentFragment();
+        for (const node of cell.childNodes) fragment.appendChild(node.cloneNode(true));
+        fragment.querySelectorAll('a[href]').forEach((a) => {
+            a.href = a.href; // Chuyển href tương đối thành tuyệt đối.
+            a.target = '_blank';
+            a.rel = 'noopener';
+        });
+        return fragment;
+    }
+
     /** Kiểm tra xem nút có nằm trong row chứa nhãn "Waiting for CFO & Accountant" không. */
     function isRowWaitingForCFO(btn) {
         const badge = utils.findElementInSameRow(
@@ -179,7 +204,7 @@
      * mà dòng chứa nó đang ở trạng thái "Waiting for CFO" VÀ mã PO tương ứng CHƯA có mặt trong
      * `poLog` (tức chưa được xử lý ở lượt chạy này).
      *
-     * @returns {{ approveBtn: HTMLElement, poNumber: string|null, editUrl: string|null, reviewSupplierBtn: HTMLElement|null } | null}
+     * @returns {{ approveBtn: HTMLElement, poNumber: string|null, editUrl: string|null, contract: DocumentFragment|null, reviewSupplierBtn: HTMLElement|null } | null}
      */
     function findNextApproveTarget() {
         const buttons = document.querySelectorAll('button, a, input, .btn');
@@ -199,7 +224,13 @@
                 'TD'
             );
 
-            return { approveBtn: btn, poNumber, editUrl: getPOEditUrlFromRow(row), reviewSupplierBtn };
+            return {
+                approveBtn: btn,
+                poNumber,
+                editUrl: getPOEditUrlFromRow(row),
+                contract: getContractFromRow(row),
+                reviewSupplierBtn
+            };
         }
         return null;
     }
@@ -328,7 +359,13 @@
                 break;
             }
 
-            const entry = { poNumber: target.poNumber, editUrl: target.editUrl, status: 'processing', message: '' };
+            const entry = {
+                poNumber: target.poNumber,
+                editUrl: target.editUrl,
+                contract: target.contract,
+                status: 'processing',
+                message: ''
+            };
             poLog.push(entry);
             renderDialog();
 
@@ -605,6 +642,15 @@
         }
         tr.appendChild(tdId);
 
+        // Dialog được dựng lại mỗi lần render nên phải clone, không chuyển thẳng fragment gốc.
+        const tdContract = document.createElement('td');
+        if (entry.contract) {
+            tdContract.appendChild(entry.contract.cloneNode(true));
+        } else {
+            tdContract.textContent = '—';
+        }
+        tr.appendChild(tdContract);
+
         const tdStatus = document.createElement('td');
         const badge = document.createElement('span');
         badge.className = `aap-status aap-status--${entry.status}`;
@@ -625,7 +671,7 @@
     function buildTable() {
         const table = document.createElement('table');
         table.className = 'aap-table';
-        table.innerHTML = '<thead><tr><th>PO</th><th>Trạng thái</th></tr></thead>';
+        table.innerHTML = '<thead><tr><th>PO</th><th>Contract</th><th>Trạng thái</th></tr></thead>';
 
         const tbody = document.createElement('tbody');
         poLog.forEach((entry) => tbody.appendChild(buildTableRow(entry)));
