@@ -64,7 +64,7 @@
      *   - Hiển thị bảng trạng thái trong dialog.
      *   - Loại trừ khi tìm item Approve tiếp theo (không bao giờ chọn lại 1 item đã có mặt
      *     trong danh sách này, kể cả khi item đó vừa xử lý lỗi).
-     * Mỗi entry: { itemNumber: string, status: 'processing'|'success'|'error', message: string }
+     * Mỗi entry: { itemNumber: string, editUrl: string|null, status: 'processing'|'success'|'error', message: string }
      */
     let itemLog = [];
 
@@ -133,7 +133,7 @@
      * Quét toàn trang, trả về nút "Approve" đầu tiên đang hiển thị (offsetParent !== null)
      * mà item tương ứng CHƯA có mặt trong `itemLog` (tức chưa được xử lý ở lượt chạy này).
      *
-     * @returns {{ approveBtn: HTMLElement, itemNumber: string } | null}
+     * @returns {{ approveBtn: HTMLElement, itemNumber: string, editUrl: string|null } | null}
      */
     function findNextApproveTarget() {
         const allButtons = document.querySelectorAll('button, a, input, .btn');
@@ -141,7 +141,9 @@
             if (btn.innerText?.trim() !== APPROVE_BUTTON_LABEL || btn.offsetParent === null) continue;
             const itemNumber = utils.findElementInSameRow(btn, '.cell-body-part .text-bold')?.textContent.trim();
             if (itemNumber && !itemLog.some((entry) => entry.itemNumber === itemNumber)) {
-                return { approveBtn: btn, itemNumber };
+                // Link trang detail lấy từ nút Detail (fa-eye) trong column Actions cùng dòng.
+                const editUrl = utils.findElementInSameRow(btn, 'a[href*="/purchase-orders/payment-items/"]')?.href || null;
+                return { approveBtn: btn, itemNumber, editUrl };
             }
         }
         return null;
@@ -225,7 +227,7 @@
             }
             console.log(`Found item: ${target.itemNumber}`);
 
-            const entry = { itemNumber: target.itemNumber, status: 'processing', message: '' };
+            const entry = { itemNumber: target.itemNumber, editUrl: target.editUrl, status: 'processing', message: '' };
             itemLog.push(entry);
             renderDialog();
 
@@ -489,7 +491,16 @@
         const tr = document.createElement('tr');
 
         const tdId = document.createElement('td');
-        tdId.textContent = entry.itemNumber;
+        if (entry.editUrl) {
+            const link = document.createElement('a');
+            link.href = entry.editUrl;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = entry.itemNumber;
+            tdId.appendChild(link);
+        } else {
+            tdId.textContent = entry.itemNumber;
+        }
         tr.appendChild(tdId);
 
         const tdStatus = document.createElement('td');
