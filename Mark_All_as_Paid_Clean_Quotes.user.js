@@ -65,7 +65,7 @@
      * Danh sách item đã/đang xử lý trong LƯỢT CHẠY HIỆN TẠI (reset về [] mỗi khi bấm nút nổi
      * để bắt đầu lượt mới). Thay cho 2 mảng `paidItems`/`advancedItems` tách rời ở bản cũ - gộp
      * chung 1 danh sách để vừa loại trừ khi tìm item tiếp theo, vừa hiển thị bảng trong dialog.
-     * Mỗi entry: { itemNumber: string, kind: 'paid'|'advance', status: 'processing'|'success'|'error', message: string }
+     * Mỗi entry: { itemNumber: string, editUrl: string|null, kind: 'paid'|'advance', status: 'processing'|'success'|'error', message: string }
      */
     let itemLog = [];
 
@@ -136,7 +136,7 @@
      * Nếu dòng đó có tag "Tạm ứng" (ADVANCE_TAG), mục tiêu thực sự cần click là nút
      * "Cash Advanced" trong cùng dòng thay vì nút "Paid".
      *
-     * @returns {{ targetBtn: HTMLElement|null, itemNumber: string, kind: 'paid'|'advance' } | null}
+     * @returns {{ targetBtn: HTMLElement|null, itemNumber: string, editUrl: string|null, kind: 'paid'|'advance' } | null}
      */
     function findNextTarget() {
         const allButtons = document.querySelectorAll('button, a, .btn');
@@ -146,16 +146,19 @@
             const itemNumber = utils.findElementInSameRow(btn, '.cell-body-part .text-bold')?.textContent.trim();
             if (!itemNumber || itemLog.some((entry) => entry.itemNumber === itemNumber)) continue;
 
+            // Link trang detail lấy từ nút Detail (fa-eye) trong column Actions cùng dòng.
+            const editUrl = utils.findElementInSameRow(btn, 'a[href*="/purchase-orders/payment-items/"]')?.href || null;
+
             const advanceTag = utils.findElementInSameRow(btn, 'div.lbl-tag__segment', (div) => div.innerText.includes(ADVANCE_TAG));
             if (advanceTag) {
                 const advanceBtn = utils.findElementInSameRow(
                     btn, 'button, a, .btn',
                     (el) => el.innerText?.trim() === ADVANCE_BUTTON_LABEL && el.offsetParent !== null
                 );
-                return { targetBtn: advanceBtn, itemNumber, kind: 'advance' };
+                return { targetBtn: advanceBtn, itemNumber, editUrl, kind: 'advance' };
             }
 
-            return { targetBtn: btn, itemNumber, kind: 'paid' };
+            return { targetBtn: btn, itemNumber, editUrl, kind: 'paid' };
         }
         return null;
     }
@@ -177,8 +180,8 @@
      * Nếu user bấm "Dừng lại" (isRunning chuyển false) ngay giữa lúc đang xử lý, hàm dừng
      * ngay lập tức và đánh dấu item là lỗi "đã dừng theo yêu cầu" thay vì báo nhầm thành success.
      *
-     * @param {{ targetBtn: HTMLElement|null, itemNumber: string, kind: 'paid'|'advance' }} target
-     * @param {{ itemNumber: string, kind: string, status: string, message: string }} entry - Entry
+     * @param {{ targetBtn: HTMLElement|null, itemNumber: string, editUrl: string|null, kind: 'paid'|'advance' }} target
+     * @param {{ itemNumber: string, editUrl: string|null, kind: string, status: string, message: string }} entry - Entry
      *        tương ứng trong `itemLog`, được cập nhật trực tiếp (theo reference).
      * @returns {Promise<void>}
      */
@@ -238,7 +241,13 @@
                 break;
             }
 
-            const entry = { itemNumber: target.itemNumber, kind: target.kind, status: 'processing', message: '' };
+            const entry = {
+                itemNumber: target.itemNumber,
+                editUrl: target.editUrl,
+                kind: target.kind,
+                status: 'processing',
+                message: ''
+            };
             itemLog.push(entry);
             renderDialog();
 
@@ -507,7 +516,16 @@
         const tr = document.createElement('tr');
 
         const tdId = document.createElement('td');
-        tdId.textContent = entry.itemNumber;
+        if (entry.editUrl) {
+            const link = document.createElement('a');
+            link.href = entry.editUrl;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = entry.itemNumber;
+            tdId.appendChild(link);
+        } else {
+            tdId.textContent = entry.itemNumber;
+        }
         tr.appendChild(tdId);
 
         const tdKind = document.createElement('td');
