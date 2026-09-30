@@ -263,7 +263,19 @@
 
             // Bấm "Yes" để hoàn tất duyệt.
             utils.simulateClick(yesBtn);
-            await utils.waitForServerResponse();
+            const responseEl = await utils.waitForServerResponse();
+
+            const isError = responseEl?.classList.contains('toast-error');
+            const message = responseEl?.querySelector('.toast-message')?.textContent?.trim()
+                || responseEl?.querySelector('.toast-title')?.textContent?.trim();
+
+            if (isError) {
+                throw new Error(message || `Duyệt "${reportName}" thất bại.`);
+            }
+
+            // Chờ nút Approve của dòng này biến mất khỏi giao diện để chắc chắn đã duyệt xong
+            // trước khi xử lý PoP tiếp theo.
+            await utils.waitForElementsRemoved([approveBtn]);
 
             entry.status = 'success';
             renderDialog();
