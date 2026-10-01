@@ -51,6 +51,10 @@
     // Chỉ có tác dụng trên cùng browser/máy. Entry cũ hơn PUSHED_ITEMS_RETENTION_DAYS ngày tự bị xoá.
     const PUSHED_ITEMS_KEY = 'mk_pushed_items';
     const PUSHED_ITEMS_RETENTION_DAYS = 180;
+    // Token hết hạn: HTTP 401 + ErrorCode này (xem MONEYKEEPER_API.md mục 1). Retry với cùng token sẽ lỗi mãi.
+    const TOKEN_EXPIRED_CODE = 'auth:11001';
+    const TOKEN_EXPIRED_MESSAGE = 'Token MoneyKeeper đã hết hạn (auth:11001). Hãy cập nhật token mới.';
+    const TOKEN_EXPIRY_WARN_MS = 60 * 60 * 1000; // Còn dưới 1 giờ thì cảnh báo "sắp hết hạn".
     const MK_BASE = 'https://moneykeeperapp.misa.vn/g1/api/business/api/v1';
     const MK_WALLETS_URL = `${MK_BASE}/wallets/addtransaction`;
     const MK_TRANSACTIONS_URL = `${MK_BASE}/transactions/`;
@@ -76,6 +80,7 @@
      * - walletsFetchedAt: thời điểm (ms) tải danh sách wallet đang dùng (từ cache hoặc vừa gọi API)
      * - refreshingWallets / refreshError: trạng thái của nút "Refresh Wallet List"
      * - waitingSeconds: > 0 khi startPushing() đang nghỉ giữa 2 lần POST (hiển thị ở dòng tóm tắt)
+     * - tokenExpired: true khi API vừa trả lỗi token hết hạn (auth:11001); reset khi lưu token mới
      * - rows: mỗi phần tử { itemNumber, detailUrl, supplier, poNo, dateText, transactionDate, original, equivalent,
      *         payTag, fromWalletId, toWalletId, description, process, pushedAt (ms, 0 = chưa push), status: 'idle'|'processing'|'success'|'error', message }
      */
@@ -154,6 +159,40 @@
         }
     }
 
+    /**
+     * Đọc giờ hết hạn (ms) từ claim `exp` của token JWT (phần giữa, base64url) - không cần secret.
+     * Token không phải JWT / không đọc được -> null.
+     */
+    function getTokenExpiry(token = getToken()) {
+        const parts = (token || '').split('.');
+        if (parts.length !== 3) return null;
+        try {
+            const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+            return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /** Token đã hết hạn theo claim `exp` (không biết giờ hết hạn -> false). */
+    function isTokenExpiredByJwt() {
+        const exp = getTokenExpiry();
+        return exp !== null && exp <= Date.now();
+    }
+
+    function isTokenExpiredError(err) {
+        return !!(err && err.tokenExpired);
+    }
+
+    /** Mô tả giờ hết hạn của 1 token cho hộp cấu hình. */
+    function describeTokenExpiry(token) {
+        const exp = getTokenExpiry(token);
+        if (exp === null) return { text: token ? 'Không đọc được giờ hết hạn (token không phải JWT).' : '', level: '' };
+        if (exp <= Date.now()) return { text: `Token này đã hết hạn lúc ${formatDateTime(exp)}.`, level: 'error' };
+        return { text: `Token hết hạn lúc ${formatDateTime(exp)}.`, level: exp - Date.now() < TOKEN_EXPIRY_WARN_MS ? 'warn' : '' };
+    }
+
     function closeConfigDialog() {
         if (configRoot) {
             configRoot.remove();
@@ -163,9 +202,10 @@
 
     /**
      * Mở dialog nhập Bearer token + extra headers (JSON). Lưu xong gọi `onSaved` (nếu có) - dùng
-     * khi user bấm nút nổi mà chưa có token: lưu xong thì chạy tiếp luôn.
+     * khi user bấm nút nổi mà chưa có token / token hết hạn: lưu xong thì chạy tiếp luôn.
+     * `notice` (tuỳ chọn): thông báo đỏ hiển thị ở đầu dialog (vd. lý do phải nhập lại token).
      */
-    function openConfigDialog(onSaved) {
+    function openConfigDialog(onSaved, notice) {
         closeConfigDialog();
         injectStyles();
 
@@ -176,41 +216,111 @@
         box.className = 'mkp-config';
         box.innerHTML = `
             <h3>Cấu hình MoneyKeeper</h3>
+            <div class="mkp-config__notice"></div>
             <label>Bearer token</label>
             <textarea class="mkp-config__token" rows="4" placeholder="Dán token (có hoặc không có chữ Bearer)"></textarea>
-            <label>Extra headers (JSON)</label>
-            <textarea class="mkp-config__headers" rows="4" placeholder='{"X-MISA-ClientId": "..."}'></textarea>
+            <div class="mkp-config__expiry"></div>
+            <label>Extra headers</label>
+            <div class="mkp-headers">
+                <table class="mkp-headers__table">
+                    <thead><tr><th>Tên header</th><th>Giá trị</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
             <div class="mkp-config__hint">Lấy từ DevTools &gt; Network của web app MISA MoneyKeeper (copy các request header lạ ngoài Authorization).</div>
             <div class="mkp-config__error"></div>
         `;
         const tokenInput = box.querySelector('.mkp-config__token');
-        const headersInput = box.querySelector('.mkp-config__headers');
+        const headersBody = box.querySelector('.mkp-headers__table tbody');
         const errorEl = box.querySelector('.mkp-config__error');
         tokenInput.value = getToken();
-        headersInput.value = GM_getValue(EXTRA_HEADERS_KEY, '') || '';
+
+        // Bảng extra headers: luôn giữ đúng 1 dòng trống ở cuối (không có nút Xoá). Gõ vào dòng trống
+        // cuối -> nút Xoá của dòng đó hiện ra + sinh dòng trống mới bên dưới; xoá trắng lại -> gộp về.
+        const isRowEmpty = (tr) => Array.from(tr.querySelectorAll('input')).every((i) => !i.value.trim());
+        const syncRemoveButtons = () => {
+            for (const tr of headersBody.children) {
+                const isTrailingEmpty = tr === headersBody.lastElementChild && isRowEmpty(tr);
+                tr.querySelector('.mkp-headers__remove').style.visibility = isTrailingEmpty ? 'hidden' : '';
+            }
+        };
+        const ensureTrailingEmptyRow = () => {
+            const last = headersBody.lastElementChild;
+            if (!last || !isRowEmpty(last)) addHeaderRow('', '');
+            syncRemoveButtons();
+        };
+        const addHeaderRow = (name, value) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td><input type="text" class="mkp-headers__name" placeholder="vd: X-MISA-ClientId"></td>'
+                + '<td><input type="text" class="mkp-headers__value"></td>'
+                + '<td><button type="button" class="mkp-headers__remove">Xoá</button></td>';
+            tr.querySelector('.mkp-headers__name').value = name;
+            tr.querySelector('.mkp-headers__value').value = value;
+            tr.addEventListener('input', () => {
+                const last = headersBody.lastElementChild;
+                // User xoá trắng lại dòng ngay trên dòng trống cuối -> bỏ dòng trống thừa để chỉ còn 1.
+                if (isRowEmpty(tr) && tr.nextElementSibling === last && isRowEmpty(last)) last.remove();
+                ensureTrailingEmptyRow();
+            });
+            tr.querySelector('.mkp-headers__remove').addEventListener('click', () => {
+                tr.remove();
+                ensureTrailingEmptyRow();
+            });
+            headersBody.appendChild(tr);
+        };
+        Object.entries(getExtraHeaders()).forEach(([name, value]) => addHeaderRow(name, String(value)));
+        ensureTrailingEmptyRow();
+
+        /** Gom các dòng thành object header; dữ liệu sai -> { error }. Dòng trống hoàn toàn bị bỏ qua. */
+        const collectHeaders = () => {
+            const headers = {};
+            for (const tr of headersBody.children) {
+                const name = tr.querySelector('.mkp-headers__name').value.trim();
+                const value = tr.querySelector('.mkp-headers__value').value.trim();
+                if (!name && !value) continue;
+                if (!name) return { error: `Thiếu tên header cho giá trị "${value}".` };
+                if (!value) return { error: `Thiếu giá trị cho header "${name}".` };
+                // Tên header hợp lệ theo chuẩn HTTP (token): không khoảng trắng, không dấu ":"...
+                if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) return { error: `Tên header "${name}" chứa ký tự không hợp lệ.` };
+                if (Object.keys(headers).some((k) => k.toLowerCase() === name.toLowerCase())) {
+                    return { error: `Header "${name}" bị trùng.` };
+                }
+                headers[name] = value;
+            }
+            return { headers };
+        };
+        box.querySelector('.mkp-config__notice').textContent = notice || '';
+
+        // Hiện ngay giờ hết hạn của token đang nhập để user biết token mới còn hạn tới khi nào.
+        const expiryEl = box.querySelector('.mkp-config__expiry');
+        const updateExpiry = () => {
+            const { text, level } = describeTokenExpiry(tokenInput.value.trim().replace(/^Bearer\s+/i, ''));
+            expiryEl.textContent = text;
+            expiryEl.className = `mkp-config__expiry${level ? ` mkp-config__expiry--${level}` : ''}`;
+        };
+        tokenInput.addEventListener('input', updateExpiry);
+        updateExpiry();
 
         const footer = document.createElement('div');
         footer.className = 'mkp-modal__footer';
         footer.appendChild(buildButton('Huỷ', 'mkp-btn--default', closeConfigDialog));
         footer.appendChild(buildButton('Lưu', 'mkp-btn--primary', () => {
             const token = tokenInput.value.trim().replace(/^Bearer\s+/i, '');
-            const headersRaw = headersInput.value.trim();
             if (!token) {
                 errorEl.textContent = 'Chưa nhập token.';
                 return;
             }
-            if (headersRaw) {
-                try {
-                    const obj = JSON.parse(headersRaw);
-                    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error();
-                } catch (e) {
-                    errorEl.textContent = 'Extra headers phải là 1 JSON object, ví dụ {"X-MISA-ClientId": "..."}.';
-                    return;
-                }
+            const { headers, error } = collectHeaders();
+            if (error) {
+                errorEl.textContent = error;
+                return;
             }
             GM_setValue(TOKEN_KEY, token);
-            GM_setValue(EXTRA_HEADERS_KEY, headersRaw);
+            // Vẫn lưu dạng chuỗi JSON như trước để tương thích dữ liệu cũ.
+            GM_setValue(EXTRA_HEADERS_KEY, Object.keys(headers).length ? JSON.stringify(headers) : '');
             closeConfigDialog();
+            session.tokenExpired = false;
+            renderDialog();
             if (onSaved) onSaved();
         }));
         box.appendChild(footer);
@@ -244,6 +354,11 @@
                 timeout: 30000,
                 onload: (res) => {
                     const text = res.responseText || '';
+                    if (res.status === 401 && parseErrorCode(text) === TOKEN_EXPIRED_CODE) {
+                        const err = new Error(TOKEN_EXPIRED_MESSAGE);
+                        err.tokenExpired = true;
+                        return reject(err);
+                    }
                     if (res.status < 200 || res.status >= 300) {
                         return reject(new Error(`HTTP ${res.status}: ${text.slice(0, 500) || res.statusText}`));
                     }
@@ -257,6 +372,15 @@
                 ontimeout: () => reject(new Error('Hết thời gian chờ MoneyKeeper phản hồi.'))
             });
         });
+    }
+
+    /** Lấy `ErrorCode` từ body lỗi dạng {"ErrorCode": "...", "Message": "..."}; không có -> null. */
+    function parseErrorCode(text) {
+        try {
+            return JSON.parse(text).ErrorCode || null;
+        } catch (e) {
+            return null;
+        }
     }
 
     async function fetchWallets() {
@@ -453,6 +577,12 @@
      * Giữa 2 lần POST nghỉ ngẫu nhiên PUSH_DELAY_MIN_MS..PUSH_DELAY_MAX_MS (không nghỉ trước POST đầu tiên).
      */
     async function startPushing() {
+        // Token đã hết hạn theo JWT -> không push (chắc chắn lỗi), báo user cập nhật token.
+        if (isTokenExpiredByJwt()) {
+            session.tokenExpired = true;
+            renderDialog();
+            return;
+        }
         isRunning = true;
         renderDialog();
         let hasPosted = false;
@@ -492,6 +622,11 @@
             } catch (err) {
                 row.status = 'error';
                 row.message = (err && err.message) || String(err);
+                // Token hết hạn: các dòng còn lại chắc chắn cũng lỗi -> dừng ngay, giữ nguyên tick để chạy lại.
+                if (isTokenExpiredError(err)) {
+                    session.tokenExpired = true;
+                    isRunning = false;
+                }
             }
             renderDialog();
         }
@@ -502,7 +637,7 @@
     }
 
     function createEmptySession() {
-        return { phase: 'loading', loadError: '', wallets: [], walletsFetchedAt: 0, refreshingWallets: false, refreshError: '', waitingSeconds: 0, rows: [] };
+        return { phase: 'loading', loadError: '', wallets: [], walletsFetchedAt: 0, refreshingWallets: false, refreshError: '', waitingSeconds: 0, tokenExpired: false, rows: [] };
     }
 
     /**
@@ -520,6 +655,7 @@
             } catch (err) {
                 session.phase = 'loadError';
                 session.loadError = (err && err.message) || String(err);
+                session.tokenExpired = isTokenExpiredError(err);
                 renderDialog();
                 return;
             }
@@ -552,6 +688,7 @@
             });
         } catch (err) {
             session.refreshError = (err && err.message) || String(err);
+            if (isTokenExpiredError(err)) session.tokenExpired = true;
         }
         session.refreshingWallets = false;
         renderDialog();
@@ -590,6 +727,10 @@
         };
         if (!getToken()) {
             openConfigDialog(start);
+            return;
+        }
+        if (isTokenExpiredByJwt()) {
+            openConfigDialog(start, `Token đã hết hạn lúc ${formatDateTime(getTokenExpiry())}. Hãy dán token mới.`);
             return;
         }
         start();
@@ -684,19 +825,46 @@
             .mkp-summary__text { font-size: 13px; color: #333; }
             .mkp-summary__error { font-size: 11px; color: #e43f3f; margin-top: 2px; word-break: break-word; }
             .mkp-btn--small { padding: 5px 10px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+            .mkp-token { font-size: 12px; margin-top: 2px; font-weight: 600; }
+            .mkp-token--error { color: #e43f3f; }
+            .mkp-token-status { font-size: 12px; color: #888; margin-right: 6px; white-space: nowrap; }
+            .mkp-token-status--warn { color: #c77c00; font-weight: 600; }
+            .mkp-token-status--error { color: #e43f3f; font-weight: 600; }
+            .mkp-config__notice { font-size: 12px; color: #e43f3f; font-weight: 600; }
+            .mkp-config__notice:empty { display: none; }
+            .mkp-config__expiry { font-size: 11px; color: #666; margin-top: 4px; }
+            .mkp-config__expiry--warn { color: #c77c00; }
+            .mkp-config__expiry--error { color: #e43f3f; font-weight: 600; }
             .mkp-load-error { color: #e43f3f; font-size: 13px; word-break: break-word; }
             .mkp-config-overlay {
                 position: fixed; inset: 0; background: rgba(0,0,0,.35);
                 display: flex; align-items: center; justify-content: center; z-index: 1000000;
             }
             .mkp-config {
-                background: #fff; border-radius: 8px; width: 520px; max-width: 92vw;
+                background: #fff; border-radius: 8px; width: 580px; max-width: 92vw;
                 font-family: Arial, sans-serif; box-shadow: 0 8px 30px rgba(0,0,0,.35);
                 padding: 18px 18px 0;
             }
             .mkp-config h3 { margin: 0 0 12px; font-size: 16px; }
             .mkp-config label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
             .mkp-config textarea { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; padding: 6px; }
+            .mkp-headers { max-height: 200px; overflow: auto; border: 1px solid #ebedf2; border-radius: 4px; }
+            .mkp-headers__table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            .mkp-headers__table th {
+                position: sticky; top: 0; background: #f7f8fa; text-align: left; font-weight: 600;
+                padding: 5px 6px; border-bottom: 1px solid #ebedf2; color: #555;
+            }
+            .mkp-headers__table td { padding: 3px 6px; border-bottom: 1px solid #f1f2f5; }
+            .mkp-headers__table th:last-child, .mkp-headers__table td:last-child { width: 1%; }
+            .mkp-headers__table input {
+                width: 100%; box-sizing: border-box; font: 12px monospace; padding: 4px 6px;
+                border: 1px solid #ebedf2; border-radius: 3px; outline: none; box-shadow: none;
+            }
+            .mkp-headers__table input:focus { border-color: #2a82fe; }
+            .mkp-headers__remove {
+                border: none; background: none; color: #e43f3f; font-size: 12px; cursor: pointer; padding: 2px 4px;
+            }
+            .mkp-headers__remove:hover { text-decoration: underline; }
             .mkp-config__hint { font-size: 11px; color: #666; margin-top: 6px; }
             .mkp-config__error { font-size: 12px; color: #e43f3f; min-height: 16px; margin: 6px 0; }
             .mkp-config .mkp-modal__footer { margin: 0 -18px; }
@@ -797,7 +965,7 @@
         });
     }
 
-    /** Dựng phần header: tiêu đề (kéo được) + nút cấu hình + nút đóng. */
+    /** Dựng phần header: tiêu đề (kéo được) + trạng thái token + nút cấu hình + nút đóng. */
     function buildHeader() {
         const header = document.createElement('div');
         header.className = 'mkp-modal__header';
@@ -809,6 +977,8 @@
 
         const actions = document.createElement('div');
         actions.className = 'mkp-modal__actions';
+
+        actions.appendChild(buildTokenStatus());
 
         const settingsBtn = document.createElement('button');
         settingsBtn.className = 'mkp-modal__settings';
@@ -855,6 +1025,30 @@
         const d = new Date(ms);
         const pad = (n) => String(n).padStart(2, '0');
         return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    /**
+     * Trạng thái token ở header dialog (luôn hiện, mọi phase): đỏ nếu đã hết hạn (theo API hoặc JWT),
+     * cam nếu còn dưới 1 giờ, xám nếu còn hạn hoặc không đọc được giờ hết hạn (token không phải JWT).
+     */
+    function buildTokenStatus() {
+        const exp = getTokenExpiry();
+        const el = document.createElement('span');
+        el.className = 'mkp-token-status';
+        if (session.tokenExpired || (exp !== null && exp <= Date.now())) {
+            el.classList.add('mkp-token-status--error');
+            el.textContent = 'Token đã hết hạn';
+            el.title = 'Bấm ⚙️ để cập nhật token mới.';
+        } else if (exp === null) {
+            el.textContent = 'Không rõ giờ hết hạn token';
+        } else if (exp - Date.now() < TOKEN_EXPIRY_WARN_MS) {
+            el.classList.add('mkp-token-status--warn');
+            el.textContent = `Token còn ~${Math.max(1, Math.round((exp - Date.now()) / 60000))} phút`;
+            el.title = `Token hết hạn lúc ${formatDateTime(exp)}`;
+        } else {
+            el.textContent = `Token hết hạn lúc ${formatDateTime(exp)}`;
+        }
+        return el;
     }
 
     /** Hàng trên bảng: tóm tắt + thời điểm cập nhật wallet (trái), nút "Refresh Wallet List" (phải). */
@@ -1055,6 +1249,12 @@
             err.className = 'mkp-load-error';
             err.textContent = `Không tải được danh sách wallet: ${session.loadError}`;
             body.appendChild(err);
+            if (session.tokenExpired) {
+                const hint = document.createElement('div');
+                hint.className = 'mkp-token mkp-token--error';
+                hint.textContent = 'Bấm ⚙️ hoặc "Cấu hình MoneyKeeper" để cập nhật token mới.';
+                body.appendChild(hint);
+            }
             return body;
         }
         if (session.rows.length === 0) {

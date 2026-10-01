@@ -41,6 +41,55 @@ Nên thiết kế client sao cho có 1 chỗ cấu hình "extra headers" tuỳ �
 mọi request), thay vì hardcode 1 danh sách cố định — vì danh sách đó có thể
 thay đổi theo thời gian hoặc theo tài khoản.
 
+### Token hết hạn
+
+Access token có thời hạn. Khi hết hạn, mọi request bị từ chối với response
+thật đã quan sát được:
+
+```
+HTTP 401
+{"ErrorCode":"auth:11001","Message":"Mã access_token hết hạn sử dụng","TraceId":"..."}
+```
+
+Nên nhận diện riêng trường hợp này (HTTP 401 + `ErrorCode` = `auth:11001`):
+khác với lỗi mạng/server, **gọi lại sau không tự khỏi** — phải thay token mới
+(lấy lại từ phiên đăng nhập web app MISA) thì mới gọi tiếp được.
+
+**Biết trước giờ hết hạn:** nếu token là JWT (chuỗi 3 phần ngăn bởi dấu `.`,
+thường bắt đầu bằng `eyJ`), phần giữa là JSON mã hoá base64url, có claim
+`exp` (Unix timestamp, UTC). Đọc được mà không cần secret, không cần kiểm
+tra chữ ký:
+
+```python
+import base64, json
+from datetime import datetime, timezone
+
+def token_expires_at(token: str):
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None  # không phải JWT
+    payload = parts[1] + "=" * (-len(parts[1]) % 4)
+    try:
+        exp = json.loads(base64.urlsafe_b64decode(payload)).get("exp")
+    except (ValueError, AttributeError):
+        return None
+    return datetime.fromtimestamp(exp, tz=timezone.utc) if isinstance(exp, (int, float)) else None
+```
+
+Nếu hiển thị giờ hết hạn trên UI, chỉ gửi xuống timestamp — không bao giờ gửi
+token ra trình duyệt.
+
+**Refresh token:** chưa xác định được endpoint refresh của MISA (API không có
+tài liệu). Cách bắt request refresh thật của web app MISA:
+- Mở web app, DevTools > Network, bật **Preserve log**, lọc `token`/`refresh`,
+  để tab mở — khi token hết hạn, web app tự gọi refresh và request nằm lại
+  trong log.
+- Hoặc: ngay khi API bắt đầu trả `auth:11001`, mở web app MISA với DevTools
+  đang bật (token của web app hết hạn cùng lúc nếu token được copy từ chính
+  phiên đó).
+- Xem DevTools > Application > Local Storage / Cookies có key chứa `refresh`
+  không — nếu có, gần như chắc chắn web app có endpoint refresh tương ứng.
+
 ## 2. Endpoint
 
 Tất cả trên host `moneykeeperapp.misa.vn`:
@@ -184,6 +233,10 @@ cần phân biệt nguyên nhân gốc cho code gọi phía trên — vì với 
 liệu như thế này, hầu hết lỗi đều nên được coi là "có thể thử lại sau" (retry
 sau), không có nhiều giá trị thực tế trong việc phân loại chi tiết hơn ở tầng
 gọi.
+
+Ngoại lệ nên tách riêng: **token hết hạn** (HTTP 401, `ErrorCode`
+`auth:11001` — xem mục 1). Retry với cùng token sẽ thất bại mãi, nên cần báo
+rõ cho người dùng để thay token, thay vì âm thầm xếp hàng retry.
 
 Với response lỗi HTTP (4xx/5xx), nên đọc + log nguyên văn body response (thường
 là JSON dạng `{"message": "..."}` hoặc tương tự) — đây thường là manh mối duy
