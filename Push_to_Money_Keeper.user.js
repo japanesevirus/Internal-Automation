@@ -631,6 +631,10 @@
             }
             .mkp-modal__header h3 { margin: 0; font-size: 16px; }
             .mkp-modal__close { cursor: pointer; border: none; background: none; font-size: 18px; color: #888; }
+            .mkp-modal__actions { display: flex; align-items: center; gap: 4px; }
+            .mkp-modal__settings { cursor: pointer; border: none; background: none; font-size: 15px; color: #888; padding: 2px 6px; }
+            .mkp-modal__settings:hover:not(:disabled), .mkp-modal__close:hover { color: #333; }
+            .mkp-modal__settings:disabled { opacity: .4; cursor: not-allowed; }
             .mkp-modal__body { padding: 18px; overflow-y: auto; flex: 1; min-height: 0; }
             .mkp-modal__footer {
                 padding: 12px 18px; border-top: 1px solid #ebedf2;
@@ -706,9 +710,9 @@
      */
     const dragState = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
 
-    /** Bắt đầu kéo dialog khi mousedown trên header (trừ khi bấm đúng vào nút đóng). */
+    /** Bắt đầu kéo dialog khi mousedown trên header (trừ khi bấm đúng vào nút cấu hình/đóng). */
     function onHeaderMouseDown(e) {
-        if (e.target.closest('.mkp-modal__close')) return;
+        if (e.target.closest('.mkp-modal__close, .mkp-modal__settings')) return;
         if (!dialogRoot) return;
         const rect = dialogRoot.getBoundingClientRect();
         dragState.active = true;
@@ -783,7 +787,17 @@
         hideDialog();
     }
 
-    /** Dựng phần header: tiêu đề (kéo được) + nút đóng. */
+    /**
+     * Nút ⚙️ ở header: mở dialog cấu hình. Lưu xong, nếu đang lỗi tải wallet thì tự tải lại;
+     * ngược lại giữ nguyên bảng và các lựa chọn hiện tại.
+     */
+    function onSettingsButtonClick() {
+        openConfigDialog(() => {
+            if (session.phase === 'loadError') loadSession(true);
+        });
+    }
+
+    /** Dựng phần header: tiêu đề (kéo được) + nút cấu hình + nút đóng. */
     function buildHeader() {
         const header = document.createElement('div');
         header.className = 'mkp-modal__header';
@@ -793,12 +807,26 @@
         title.textContent = 'Push to Money Keeper';
         header.appendChild(title);
 
+        const actions = document.createElement('div');
+        actions.className = 'mkp-modal__actions';
+
+        const settingsBtn = document.createElement('button');
+        settingsBtn.className = 'mkp-modal__settings';
+        settingsBtn.type = 'button';
+        settingsBtn.title = 'Cấu hình MoneyKeeper';
+        settingsBtn.textContent = '⚙️';
+        settingsBtn.disabled = isRunning; // Không đổi token giữa lúc đang push.
+        settingsBtn.addEventListener('click', onSettingsButtonClick);
+        actions.appendChild(settingsBtn);
+
         const closeBtn = document.createElement('button');
         closeBtn.className = 'mkp-modal__close';
         closeBtn.type = 'button';
         closeBtn.innerHTML = '&times;';
         closeBtn.addEventListener('click', onCloseButtonClick);
-        header.appendChild(closeBtn);
+        actions.appendChild(closeBtn);
+
+        header.appendChild(actions);
 
         return header;
     }
