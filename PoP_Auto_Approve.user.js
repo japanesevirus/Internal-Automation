@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PoP Auto Approve
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Tự động duyệt (Approve) các PoP có tất cả invoice ở trạng thái "Paid": chờ loading, xác nhận "Yes" trên hộp thoại, điều khiển qua nút nổi
 // @author       Gemini AI
 // @match        https://pop.saigontechnology.vn/pop-reports*
@@ -704,7 +704,36 @@
      * Chờ FinplanUtils sẵn sàng rồi đăng ký nút nổi. Không cần polling URL như các script
      * Approve_All_* vì `@match` của file này đã giới hạn đúng phạm vi trang pop-reports.
      */
+    /**
+     * Thêm lựa chọn "100" vào select số dòng/trang (đang có sẵn 5, 10, 20, 40) nếu chưa có.
+     * Nhận diện select theo đúng tập giá trị option thay vì attribute `_ngcontent-*` (do
+     * Angular sinh ra, có thể đổi giữa các bản build).
+     */
+    function ensurePageSize100Option() {
+        document.querySelectorAll('select').forEach(select => {
+            const values = Array.from(select.options).map(o => o.value);
+            if (values.join(',') !== '5,10,20,40') return;
+            const template = select.options[select.options.length - 1];
+            const option = template.cloneNode(false);
+            option.value = '100';
+            option.textContent = '100';
+            option.selected = false;
+            select.appendChild(option);
+        });
+    }
+
+    /**
+     * Angular có thể render lại phần phân trang (chuyển trang, lọc...) nên theo dõi DOM để
+     * chèn lại option "100" mỗi khi select được tạo mới.
+     */
+    function watchPageSizeSelect() {
+        ensurePageSize100Option();
+        new MutationObserver(ensurePageSize100Option)
+            .observe(document.body, { childList: true, subtree: true });
+    }
+
     async function init() {
+        watchPageSizeSelect();
         try {
             utils = await waitForFinplanUtils();
         } catch (err) {
