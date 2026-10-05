@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Push to Money Keeper - Finplan
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Đẩy các Payment Item có tag "Nhật thanh toán ► ..." lên MISA MoneyKeeper dưới dạng giao dịch chuyển khoản giữa 2 wallet
 // @author       Claude
 // @match        https://finplan.saigontechnology.vn/*
@@ -21,7 +21,8 @@
      * ============================================================================
      * PUSH TO MONEY KEEPER
      * ============================================================================
-     * Quét bảng Payment Item đang hiển thị, lấy các dòng có tag "Nhật thanh toán ► XXXX",
+     * Quét bảng Payment Item đang hiển thị (trang danh sách /purchase-orders/payment-items hoặc
+     * bảng Payment Item trong trang /purchase-orders/update/{id}), lấy các dòng có tag "Nhật thanh toán ► XXXX",
      * hiển thị trong dialog để user chọn/sửa From Wallet, To Wallet, Description, rồi đẩy mỗi
      * dòng lên MISA MoneyKeeper thành 1 giao dịch chuyển khoản (transactionType 2).
      * Tham khảo API: MONEYKEEPER_API.md.
@@ -30,7 +31,9 @@
      *   1) CẤU HÌNH MONEYKEEPER - token + extra headers lưu bằng GM_setValue, sửa qua menu
      *      Tampermonkey "Cấu hình MoneyKeeper" (hoặc tự bật khi chưa có token).
      *   2) GỌI API - mkRequest() bọc GM_xmlhttpRequest (API khác domain nên không dùng fetch).
-     *   3) ĐỌC BẢNG + CHỌN WALLET MẶC ĐỊNH - parse từng dòng, đoán From/To Wallet.
+     *   3) ĐỌC BẢNG + CHỌN WALLET MẶC ĐỊNH - parse từng dòng, đoán From/To Wallet. Trang danh sách
+     *      đọc theo class cell-body-*; trang PO update (td không có class) đọc theo index cột lấy từ
+     *      class cell-head-* của thead, Supplier / PO No lấy từ form của PO.
      *   4) TIẾN TRÌNH PUSH - startPushing() đẩy tuần tự từng dòng được tick "Process".
      *   5) FLOATING BUTTON + DIALOG - nút nổi qua Button Manager dùng chung, dialog kéo được
      *      dựng lại từ đầu mỗi lần đổi trạng thái (renderDialog + build*).
@@ -41,7 +44,8 @@
      *  CONFIG
      * ========================================================================= */
     let utils = null; // Gán 1 lần trong bootstrap async ở cuối file (sau khi waitForFinplanUtils() resolve).
-    const PAGE_PATH = '/purchase-orders/payment-items';
+    const PAGE_LIST_PATH = '/purchase-orders/payment-items';
+    const PO_UPDATE_REGEX = /^\/purchase-orders\/update\/\d+$/;
     const BUTTON_ID = 'push-to-money-keeper';
     const DIALOG_POSITION_KEY = 'mk_dialog_position_v1';
     const TOKEN_KEY = 'mk_token';                 // GM storage: Bearer token (không kèm chữ "Bearer ").
@@ -446,9 +450,10 @@
         return `${m[3]}-${pad(MONTHS[m[2]])}-${pad(m[1])}T00:00:00`;
     }
 
-    /** Trả về phần XXXX của tag "Nhật thanh toán ► XXXX" đầu tiên trong dòng, hoặc null. */
-    function findPayTag(tr) {
-        for (const tag of tr.querySelectorAll('.cell-body-tags .lbl-tag')) {
+    /** Trả về phần XXXX của tag "Nhật thanh toán ► XXXX" đầu tiên trong ô Tags, hoặc null. */
+    function findPayTag(tagsCell) {
+        if (!tagsCell) return null;
+        for (const tag of tagsCell.querySelectorAll('.lbl-tag')) {
             const text = normalizeText(Array.from(tag.querySelectorAll('.lbl-tag__segment')).map((s) => s.textContent).join(' '));
             const m = text.match(PAY_TAG_REGEX);
             if (m) return m[1].trim();
@@ -456,11 +461,25 @@
         return null;
     }
 
+    /** Path hiện tại (bỏ "/" cuối). */
+    function currentPath() {
+        return window.location.pathname.replace(/\/+$/, '');
+    }
+
+    function isPoUpdatePage() {
+        return PO_UPDATE_REGEX.test(currentPath());
+    }
+
     /** Quét bảng đang hiển thị, trả về dữ liệu thô của các dòng có tag "Nhật thanh toán ► XXXX". */
     function scanTableRows() {
+        return isPoUpdatePage() ? scanPoUpdateRows() : scanListRows();
+    }
+
+    /** Trang danh sách /purchase-orders/payment-items: td có class cell-body-*. */
+    function scanListRows() {
         const result = [];
         document.querySelectorAll('table.m-datatable__table tbody tr.m-datatable__row').forEach((tr) => {
-            const payTag = findPayTag(tr);
+            const payTag = findPayTag(tr.querySelector('.cell-body-tags'));
             if (!payTag) return;
 
             const amountCells = tr.querySelectorAll('td.cell-body-amount');
@@ -477,6 +496,53 @@
                 original: parseAmount(amountText(amountCells[0])),
                 equivalent: parseAmount(amountText(amountCells[1])),
                 payTag
+            });
+        });
+        return result;
+    }
+
+    /**
+     * Trang /purchase-orders/update/{id}: td không có class nên lấy index cột từ class cell-head-*
+     * của thead. Supplier / PO No không có trong bảng -> đọc 1 lần từ form của PO.
+     */
+    function scanPoUpdateRows() {
+        const result = [];
+        const supplierLabel = Array.from(document.querySelectorAll('label.form-control-label'))
+            .find((l) => normalizeText(l.textContent).replace(/\*$/, '') === 'Supplier');
+        const supplier = normalizeText(
+            supplierLabel?.parentElement?.querySelector('app-sts-dropdown-list .input .left span')?.textContent
+        );
+        const poNo = normalizeText(document.querySelector('input[formcontrolname="purchaseOrderNo"]')?.value);
+
+        document.querySelectorAll('table.m-datatable__table').forEach((table) => {
+            const ths = Array.from(table.querySelectorAll('thead th'));
+            const colIndex = (cls) => ths.findIndex((th) => th.classList.contains(cls));
+            const idx = {
+                part: colIndex('cell-head-part'),
+                date: colIndex('cell-head-estimated'),
+                original: ths.findIndex((th) => th.classList.contains('cell-head-amount') && !th.classList.contains('cell-head-equivalent')),
+                equivalent: colIndex('cell-head-equivalent'),
+                tags: colIndex('cell-head-tags')
+            };
+            if (idx.part < 0 || idx.tags < 0) return; // Không phải bảng Payment Item.
+
+            table.querySelectorAll('tbody tr.m-datatable__row').forEach((tr) => {
+                const cells = tr.children;
+                const payTag = findPayTag(cells[idx.tags]);
+                if (!payTag) return;
+
+                const dateText = normalizeText(cells[idx.date]?.textContent);
+                result.push({
+                    itemNumber: normalizeText(cells[idx.part]?.querySelector(':scope > span.text-bold')?.textContent),
+                    detailUrl: tr.querySelector('a[href*="/purchase-orders/payment-items/"]')?.href || null,
+                    supplier,
+                    poNo,
+                    dateText,
+                    transactionDate: parseDate(dateText),
+                    original: parseAmount(cells[idx.original]?.textContent),
+                    equivalent: parseAmount(cells[idx.equivalent]?.textContent),
+                    payTag
+                });
             });
         });
         return result;
@@ -1346,9 +1412,20 @@
      *  SPA URL WATCHER / KHỞI TẠO
      * ========================================================================= */
 
+    let lastPath = null; // Path ở lần checkUrl trước, để phát hiện chuyển từ PO này sang PO khác.
+
     /** Đăng ký/huỷ nút nổi theo URL hiện tại (SPA không load lại trang khi đổi route). */
     const checkUrl = () => {
-        const isAllowed = window.location.pathname.replace(/\/+$/, '') === PAGE_PATH;
+        const path = currentPath();
+        const isAllowed = path === PAGE_LIST_PATH || PO_UPDATE_REGEX.test(path);
+        const pathChanged = lastPath !== null && path !== lastPath;
+        lastPath = path;
+
+        if (isAllowed && buttonRegistered && pathChanged) {
+            // Vẫn ở trang hợp lệ nhưng đổi route (vd. PO khác): dữ liệu trong dialog đã cũ.
+            isRunning = false;
+            hideDialog();
+        }
 
         if (isAllowed && !buttonRegistered) {
             registerLauncherButton();
