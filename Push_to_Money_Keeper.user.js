@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Push to Money Keeper - Finplan
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Đẩy các Payment Item có tag "Nhật thanh toán ► ..." lên MISA MoneyKeeper dưới dạng giao dịch chuyển khoản giữa 2 wallet
 // @author       Claude
 // @match        https://finplan.saigontechnology.vn/*
@@ -588,6 +588,15 @@
         return row.original?.currency === 'VND';
     }
 
+    /** Ngày thanh toán (transactionDate) trước hôm nay theo giờ máy. Không có ngày -> false (validateRow chặn riêng). */
+    function isPastDate(row) {
+        if (!row.transactionDate) return false;
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        return row.transactionDate.slice(0, 10) < today;
+    }
+
     /** Trả về thông báo lỗi nếu dòng chưa đủ dữ liệu để push, ngược lại null. */
     function validateRow(row) {
         if (!row.original) return 'Không đọc được Original Amount.';
@@ -614,8 +623,9 @@
                 status: 'idle',
                 message: ''
             });
-            // Dòng chưa hợp lệ hoặc đã push ở lượt trước thì mặc định không tick (user vẫn tick tay được).
-            row.process = !validateRow(row) && !row.pushedAt;
+            // Dòng chưa hợp lệ, đã push ở lượt trước hoặc có ngày thanh toán đã qua thì mặc định không tick
+            // (user vẫn tick tay được).
+            row.process = !validateRow(row) && !row.pushedAt && !isPastDate(row);
             return row;
         });
     }
@@ -1080,8 +1090,12 @@
         }
         if (successCount + errorCount === 0) {
             const pushedCount = rows.filter((r) => r.pushedAt).length;
-            const pushedNote = pushedCount ? ` (${pushedCount} item đã push trước đó, không tự chọn)` : '';
-            return `Tìm thấy ${rows.length} item có tag "Nhật thanh toán ► ...", đang chọn ${checkedCount} dòng để đẩy.${pushedNote}`;
+            const pastCount = rows.filter((r) => !r.pushedAt && isPastDate(r)).length;
+            const notes = [];
+            if (pushedCount) notes.push(`${pushedCount} item đã push trước đó`);
+            if (pastCount) notes.push(`${pastCount} item có ngày thanh toán đã qua`);
+            const skippedNote = notes.length ? ` (${notes.join(', ')}, không tự chọn)` : '';
+            return `Tìm thấy ${rows.length} item có tag "Nhật thanh toán ► ...", đang chọn ${checkedCount} dòng để đẩy.${skippedNote}`;
         }
         return `Đã xong. Thành công: ${successCount}, Lỗi: ${errorCount}. Còn ${checkedCount} dòng đang được chọn.`;
     }
@@ -1231,6 +1245,12 @@
         const tdDate = document.createElement('td');
         tdDate.className = 'mkp-nowrap';
         tdDate.textContent = row.dateText || '-/-';
+        if (isPastDate(row)) {
+            const past = document.createElement('div');
+            past.className = 'mkp-sub';
+            past.textContent = 'Ngày đã qua';
+            tdDate.appendChild(past);
+        }
         tr.appendChild(tdDate);
 
         const tdFrom = document.createElement('td');
