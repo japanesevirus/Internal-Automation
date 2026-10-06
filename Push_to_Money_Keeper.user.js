@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Push to Money Keeper - Finplan
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Đẩy các Payment Item có tag "Nhật thanh toán ► ..." lên MISA MoneyKeeper dưới dạng giao dịch chuyển khoản giữa 2 wallet
 // @author       Claude
 // @match        https://finplan.saigontechnology.vn/*
@@ -34,6 +34,8 @@
      *   3) ĐỌC BẢNG + CHỌN WALLET MẶC ĐỊNH - parse từng dòng, đoán From/To Wallet. Trang danh sách
      *      đọc theo class cell-body-*; trang PO update (td không có class) đọc theo index cột lấy từ
      *      class cell-head-* của thead, Supplier / PO No lấy từ form của PO.
+     *      GỘP ITEM TRÙNG - dòng chưa push cùng Supplier + ngày + loại tiền + tag được gộp sẵn
+     *      thành 1 dòng / 1 giao dịch (mergeDuplicateRows), user bấm "Tách" để quay lại từng item.
      *   4) TIẾN TRÌNH PUSH - startPushing() đẩy tuần tự từng dòng được tick "Process".
      *   5) FLOATING BUTTON + DIALOG - nút nổi qua Button Manager dùng chung, dialog kéo được
      *      dựng lại từ đầu mỗi lần đổi trạng thái (renderDialog + build*).
@@ -86,7 +88,8 @@
      * - waitingSeconds: > 0 khi startPushing() đang nghỉ giữa 2 lần POST (hiển thị ở dòng tóm tắt)
      * - tokenExpired: true khi API vừa trả lỗi token hết hạn (auth:11001); reset khi lưu token mới
      * - rows: mỗi phần tử { itemNumber, detailUrl, supplier, poNo, dateText, transactionDate, original, equivalent,
-     *         payTag, fromWalletId, toWalletId, description, process, pushedAt (ms, 0 = chưa push), status: 'idle'|'processing'|'success'|'error', message }
+     *         payTag, fromWalletId, toWalletId, description, process, pushedAt (ms, 0 = chưa push), status: 'idle'|'processing'|'success'|'error', message,
+     *         members? (chỉ dòng gộp: các dòng gốc; itemNumber = "#a + #b", số tiền = tổng) }
      */
     let session = createEmptySession();
 
@@ -612,22 +615,125 @@
         return findWalletIdByName(isVnd(row) ? TO_WALLET_VND : TO_WALLET_FOREIGN, wallets);
     }
 
+    /** Dòng chưa hợp lệ, đã push ở lượt trước hoặc có ngày thanh toán đã qua thì mặc định không tick (user vẫn tick tay được). */
+    function defaultProcess(row) {
+        return !validateRow(row) && !row.pushedAt && !isPastDate(row);
+    }
+
+    function buildRow(raw, wallets, pushedItems) {
+        const row = Object.assign({}, raw, {
+            fromWalletId: guessFromWalletId(raw.payTag, wallets),
+            toWalletId: defaultToWalletId(raw, wallets),
+            description: `${raw.supplier} ${raw.poNo} (${raw.original ? raw.original.text : ''}) ${raw.itemNumber} ?!`,
+            pushedAt: pushedItems[raw.itemNumber] || 0,
+            status: 'idle',
+            message: ''
+        });
+        row.process = defaultProcess(row);
+        return row;
+    }
+
     function buildRows(rawRows, wallets) {
         const pushedItems = loadPushedItems();
-        return rawRows.map((raw) => {
-            const row = Object.assign({}, raw, {
-                fromWalletId: guessFromWalletId(raw.payTag, wallets),
-                toWalletId: defaultToWalletId(raw, wallets),
-                description: `${raw.supplier} ${raw.poNo} (${raw.original ? raw.original.text : ''}) ${raw.itemNumber} ?!`,
-                pushedAt: pushedItems[raw.itemNumber] || 0,
-                status: 'idle',
-                message: ''
-            });
-            // Dòng chưa hợp lệ, đã push ở lượt trước hoặc có ngày thanh toán đã qua thì mặc định không tick
-            // (user vẫn tick tay được).
-            row.process = !validateRow(row) && !row.pushedAt && !isPastDate(row);
-            return row;
+        return mergeDuplicateRows(rawRows.map((raw) => buildRow(raw, wallets, pushedItems)), wallets);
+    }
+
+    /* =========================================================================
+     *  GỘP ITEM TRÙNG
+     *  Các dòng chưa push cùng Supplier + ngày thanh toán + loại tiền + tag "Nhật thanh toán ► XXXX"
+     *  được gộp sẵn thành 1 dòng (= 1 giao dịch MoneyKeeper). Dòng gộp có cùng shape với dòng thường,
+     *  thêm `members` (các dòng gốc) để tách lại hoặc đánh dấu đã push cho từng item.
+     * ========================================================================= */
+
+    /** Khoá nhóm; null nếu dòng không được xét gộp (đã push hoặc thiếu số tiền / ngày). */
+    function mergeKey(row) {
+        if (row.pushedAt || !row.original || !row.transactionDate) return null;
+        return [row.supplier, row.transactionDate, row.original.currency, row.payTag].join('|');
+    }
+
+    function roundMoney(n) {
+        return Math.round(n * 100) / 100;
+    }
+
+    /** 1234.5, 'USD' -> "1,234.50 USD" (cùng định dạng với bảng finplan). */
+    function formatAmount(value, currency) {
+        return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+    }
+
+    /** Phần số của amount.text: "20.00 USD" -> "20.00". */
+    function amountNumberText(amount) {
+        return amount.text.replace(/\s*[A-Z]{3}$/, '');
+    }
+
+    function buildMergedRow(members, wallets) {
+        const first = members[0];
+        const currency = first.original.currency;
+        const original = roundMoney(members.reduce((sum, m) => sum + m.original.value, 0));
+        // Thiếu Equivalent ở bất kỳ item nào -> để null, validateRow báo lỗi như dòng thường.
+        const equivalent = members.every((m) => m.equivalent)
+            ? roundMoney(members.reduce((sum, m) => sum + m.equivalent.value, 0))
+            : null;
+        const equivalentCurrency = first.equivalent?.currency || 'VND';
+        const poNos = Array.from(new Set(members.map((m) => m.poNo).filter(Boolean))).join(', ');
+        const itemNumbers = members.map((m) => m.itemNumber);
+
+        const row = Object.assign({}, first, {
+            members,
+            itemNumber: itemNumbers.join(' + '),
+            detailUrl: null,
+            poNo: poNos,
+            original: { value: original, currency, text: formatAmount(original, currency) },
+            equivalent: equivalent === null ? null
+                : { value: equivalent, currency: equivalentCurrency, text: formatAmount(equivalent, equivalentCurrency) },
+            fromWalletId: guessFromWalletId(first.payTag, wallets),
+            toWalletId: defaultToWalletId(first, wallets),
+            // Số tiền từng item theo đúng thứ tự item # phía sau.
+            description: `${first.supplier} ${poNos} (${members.map((m) => amountNumberText(m.original)).join(' + ')} ${currency}) ${itemNumbers.join(' ')} ?!`,
+            pushedAt: 0,
+            status: 'idle',
+            message: ''
         });
+        row.process = defaultProcess(row);
+        return row;
+    }
+
+    /** Thay mỗi nhóm >= 2 dòng trùng khoá bằng 1 dòng gộp, đặt ở vị trí dòng đầu nhóm. */
+    function mergeDuplicateRows(rows, wallets) {
+        const groups = new Map();
+        rows.forEach((row) => {
+            const key = mergeKey(row);
+            if (!key) return;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(row);
+        });
+        const result = [];
+        rows.forEach((row) => {
+            const group = groups.get(mergeKey(row));
+            if (!group || group.length < 2) {
+                result.push(row);
+            } else if (group[0] === row) {
+                result.push(buildMergedRow(group, wallets));
+            }
+        });
+        return result;
+    }
+
+    /** Nút "Tách": thay dòng gộp bằng các item gốc, giữ From/To Wallet đang chọn. Không tự gộp lại trong lượt này. */
+    function splitMergedRow(row) {
+        const index = session.rows.indexOf(row);
+        if (index < 0 || !row.members) return;
+        const members = row.members.map((m) => {
+            const member = Object.assign({}, m, { fromWalletId: row.fromWalletId, toWalletId: row.toWalletId, status: 'idle', message: '' });
+            member.process = defaultProcess(member);
+            return member;
+        });
+        session.rows.splice(index, 1, ...members);
+        renderDialog();
+    }
+
+    /** Các item # mà 1 dòng đại diện (dòng gộp -> mọi member). */
+    function rowItemNumbers(row) {
+        return row.members ? row.members.map((m) => m.itemNumber) : [row.itemNumber];
     }
 
     /* =========================================================================
@@ -694,7 +800,7 @@
                 row.message = '';
                 row.process = false;
                 row.pushedAt = Date.now();
-                markItemPushed(row.itemNumber, row.pushedAt);
+                rowItemNumbers(row).forEach((itemNumber) => markItemPushed(itemNumber, row.pushedAt));
             } catch (err) {
                 row.status = 'error';
                 row.message = (err && err.message) || String(err);
@@ -878,9 +984,10 @@
                 position: sticky; top: 0; z-index: 1;
                 background: #fff; box-shadow: inset 0 -1px 0 #ebedf2; white-space: nowrap;
             }
-            .mkp-table select { width: 190px; font-size: 12px; padding: 3px; }
+            .mkp-table select { width: 175px; font-size: 12px; padding: 3px; }
+            .mkp-table td:last-child { min-width: 90px; }
             .mkp-desc {
-                display: block; width: 100%; min-width: 260px; box-sizing: border-box;
+                display: block; width: 100%; min-width: 220px; box-sizing: border-box;
                 font: 12px/1.4 Arial, sans-serif; color: #333; padding: 4px 6px;
                 border: 1px solid #ebedf2; border-radius: 3px; background: #fff;
                 box-shadow: none; outline: none; resize: none; overflow: hidden;
@@ -891,6 +998,14 @@
             .mkp-center { text-align: center !important; }
             .mkp-nowrap { white-space: nowrap; }
             .mkp-sub { font-size: 11px; color: #666; margin-top: 2px; }
+            /* Nhãn + nút Tách xếp dọc để cột Item # không rộng hơn mã item (tránh cuộn ngang). */
+            .mkp-merged { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; margin-top: 4px; }
+            .mkp-merged__label { font-size: 11px; color: #2a82fe; background: rgba(42,130,254,.12); padding: 1px 6px; border-radius: 100px; }
+            .mkp-merged__split {
+                font-size: 11px; padding: 1px 8px; border: 1px solid #ccc; border-radius: 4px;
+                background: #fff; color: #333; cursor: pointer;
+            }
+            .mkp-merged__split:disabled { opacity: .5; cursor: not-allowed; }
             .mkp-status { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 12px; white-space: nowrap; }
             .mkp-status--processing { background: rgba(42,130,254,.15); color: #2a82fe; }
             .mkp-status--success { background: rgba(51,153,51,.15); color: #393; }
@@ -1090,12 +1205,17 @@
         }
         if (successCount + errorCount === 0) {
             const pushedCount = rows.filter((r) => r.pushedAt).length;
-            const pastCount = rows.filter((r) => !r.pushedAt && isPastDate(r)).length;
+            const pastCount = rows.filter((r) => !r.pushedAt && isPastDate(r)).reduce((sum, r) => sum + (r.members ? r.members.length : 1), 0);
             const notes = [];
             if (pushedCount) notes.push(`${pushedCount} item đã push trước đó`);
             if (pastCount) notes.push(`${pastCount} item có ngày thanh toán đã qua`);
             const skippedNote = notes.length ? ` (${notes.join(', ')}, không tự chọn)` : '';
-            return `Tìm thấy ${rows.length} item có tag "Nhật thanh toán ► ...", đang chọn ${checkedCount} dòng để đẩy.${skippedNote}`;
+            const mergedRows = rows.filter((r) => r.members);
+            const itemCount = rows.reduce((sum, r) => sum + (r.members ? r.members.length : 1), 0);
+            const mergedNote = mergedRows.length
+                ? ` Đã gộp ${mergedRows.reduce((sum, r) => sum + r.members.length, 0)} item thành ${mergedRows.length} giao dịch (cùng Supplier, ngày, loại tiền, tag).`
+                : '';
+            return `Tìm thấy ${itemCount} item có tag "Nhật thanh toán ► ...", đang chọn ${checkedCount} dòng để đẩy.${skippedNote}${mergedNote}`;
         }
         return `Đã xong. Thành công: ${successCount}, Lỗi: ${errorCount}. Còn ${checkedCount} dòng đang được chọn.`;
     }
@@ -1226,7 +1346,23 @@
 
         const tdId = document.createElement('td');
         tdId.className = 'mkp-nowrap';
-        if (row.detailUrl) {
+        if (row.members) {
+            // Dòng gộp: mỗi item 1 link riêng.
+            row.members.forEach((m) => {
+                const line = document.createElement('div');
+                if (m.detailUrl) {
+                    const link = document.createElement('a');
+                    link.href = m.detailUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    link.textContent = m.itemNumber;
+                    line.appendChild(link);
+                } else {
+                    line.textContent = m.itemNumber;
+                }
+                tdId.appendChild(line);
+            });
+        } else if (row.detailUrl) {
             const link = document.createElement('a');
             link.href = row.detailUrl;
             link.target = '_blank';
@@ -1240,6 +1376,22 @@
         tagSub.className = 'mkp-sub';
         tagSub.textContent = row.payTag;
         tdId.appendChild(tagSub);
+        if (row.members) {
+            const merged = document.createElement('div');
+            merged.className = 'mkp-merged';
+            const label = document.createElement('span');
+            label.className = 'mkp-merged__label';
+            label.textContent = `Gộp ${row.members.length} item`;
+            merged.appendChild(label);
+            const splitBtn = document.createElement('button');
+            splitBtn.type = 'button';
+            splitBtn.className = 'mkp-merged__split';
+            splitBtn.textContent = 'Tách';
+            splitBtn.disabled = locked;
+            splitBtn.addEventListener('click', () => splitMergedRow(row));
+            merged.appendChild(splitBtn);
+            tdId.appendChild(merged);
+        }
         tr.appendChild(tdId);
 
         const tdDate = document.createElement('td');
