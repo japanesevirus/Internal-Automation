@@ -71,9 +71,34 @@
     let dialogRoot = null;      // Element DOM của dialog đang hiển thị (null nếu đang ẩn/đóng).
     let dialogHidden = true;    // true = không vẽ dialog dù có log/đang chạy (user bấm "Ẩn cửa sổ").
     let dialogPosition = loadDialogPosition(); // Vị trí đã lưu từ lần kéo gần nhất (nếu có).
-    // true = tự cuộn bảng log xuống dòng mới nhất mỗi lần renderDialog(). Tắt tạm khi user cuộn
-    // lên đọc log cũ, bật lại khi cuộn về sát đáy. Reset về true khi bắt đầu lượt chạy mới.
-    let progressStickToBottom = true;
+    // true = mỗi lần renderDialog(), tự cuộn bảng log tới dòng ĐANG XỬ LÝ (tr[data-current="1"]).
+    // Tắt khi user chủ động cuộn khỏi dòng đó, bật lại khi họ cuộn sao cho dòng đang xử lý nằm
+    // trong vùng nhìn. Reset về true khi bắt đầu lượt chạy mới.
+    let followCurrent = true;
+    // scrollTop do chính script đặt ở lần cuộn tự động gần nhất, để listener 'scroll' phân biệt
+    // sự kiện cuộn của script với cuộn tay của user.
+    let lastAutoScrollTop = -1;
+
+    /** Dòng đang xử lý có đang nằm (dù một phần) trong vùng nhìn của bảng log, dưới thead dính không. */
+    function isCurrentRowVisible(logEl, row) {
+        const thead = logEl.querySelector('thead');
+        const headH = thead ? thead.offsetHeight : 0;
+        const lr = logEl.getBoundingClientRect();
+        const rr = row.getBoundingClientRect();
+        return rr.bottom > lr.top + headH && rr.top < lr.bottom;
+    }
+
+    /** Cuộn bảng log sao cho dòng đang xử lý nằm giữa vùng nhìn (phần dưới thead dính). */
+    function scrollCurrentRowIntoView(logEl, row) {
+        const thead = logEl.querySelector('thead');
+        const headH = thead ? thead.offsetHeight : 0;
+        const lr = logEl.getBoundingClientRect();
+        const rr = row.getBoundingClientRect();
+        const rowTop = rr.top - lr.top + logEl.scrollTop;
+        const spare = Math.max(0, (logEl.clientHeight - headH - rr.height) / 2);
+        logEl.scrollTop = rowTop - headH - spare;
+        lastAutoScrollTop = logEl.scrollTop;
+    }
 
     /* =========================================================================
      *  CHỜ THƯ VIỆN DÙNG CHUNG (unsafeWindow.FinplanUtils)
@@ -269,7 +294,7 @@
             return;
         }
         itemLog = [];
-        progressStickToBottom = true;
+        followCurrent = true;
         isRunning = true;
         dialogHidden = false;
         renderDialog();
@@ -489,6 +514,7 @@
     /** Dựng 1 dòng của bảng trạng thái ứng với 1 entry trong `itemLog`. */
     function buildTableRow(entry) {
         const tr = document.createElement('tr');
+        if (entry.status === 'processing') tr.dataset.current = '1'; // dòng đang xử lý
 
         const tdId = document.createElement('td');
         if (entry.editUrl) {
@@ -541,10 +567,12 @@
         const logWrap = document.createElement('div');
         logWrap.className = 'aai-log';
         logWrap.appendChild(buildTable());
-        // User cuộn lên đọc log cũ -> tạm ngừng bám đáy; cuộn lại sát đáy -> bật lại.
+        // Bỏ qua sự kiện cuộn do chính script gây ra. User cuộn tay khỏi dòng đang xử lý ->
+        // ngừng bám; cuộn sao cho dòng đó vào vùng nhìn -> bám lại.
         logWrap.addEventListener('scroll', () => {
-            progressStickToBottom =
-                logWrap.scrollHeight - logWrap.scrollTop - logWrap.clientHeight <= 8;
+            if (Math.abs(logWrap.scrollTop - lastAutoScrollTop) < 1) return;
+            const row = logWrap.querySelector('tr[data-current="1"]');
+            if (row) followCurrent = isCurrentRowVisible(logWrap, row);
         });
         body.appendChild(logWrap);
 
@@ -593,6 +621,10 @@
      * không hiển thị UI - user có thể mở lại bằng cách bấm nút nổi).
      */
     function renderDialog() {
+        // Dialog được dựng lại từ đầu mỗi lần -> nhớ vị trí cuộn của bảng log để khôi phục khi
+        // không ở chế độ bám dòng đang xử lý.
+        const prevLog = dialogRoot && dialogRoot.querySelector('.aai-log');
+        const prevScrollTop = prevLog ? prevLog.scrollTop : 0;
         closeDialogDom();
         if (dialogHidden) return;
 
@@ -609,11 +641,17 @@
         document.body.appendChild(modal);
         dialogRoot = modal;
 
-        // Modal đã vào DOM -> cuộn bảng log xuống dòng mới nhất để người dùng theo dõi item đang
-        // xử lý. Bỏ qua nếu user đang cuộn lên đọc log cũ.
+        // Modal đã vào DOM -> cuộn bảng log tới dòng đang xử lý. Nếu user đang cuộn đi chỗ khác
+        // (hoặc không còn dòng đang xử lý) thì giữ nguyên vị trí cuộn trước đó.
         const logEl = modal.querySelector('.aai-log');
-        if (logEl && progressStickToBottom) {
-            logEl.scrollTop = logEl.scrollHeight;
+        if (logEl) {
+            const currentRow = logEl.querySelector('tr[data-current="1"]');
+            if (currentRow && followCurrent) {
+                scrollCurrentRowIntoView(logEl, currentRow);
+            } else {
+                logEl.scrollTop = prevScrollTop;
+                lastAutoScrollTop = logEl.scrollTop;
+            }
         }
     }
 

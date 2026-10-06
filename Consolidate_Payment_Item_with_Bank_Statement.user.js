@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Consolidate Payment Item with Bank Statement
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Cập nhật Equivalent Amount và chuyển tag "Waiting for bank statement" -> "Waiting for bank statement ► Checked" hàng loạt cho danh sách Payment Item
 // @author       Claude
 // @match        https://finplan.saigontechnology.vn/*
@@ -72,6 +72,10 @@
      *  taskObject (kết quả parse của 1 dòng) LUÔN có tối thiểu:
      *      { format: <id định dạng>, id: <payment item id, chuỗi số> }
      *  cộng thêm các field riêng của định dạng (ví dụ equivalentAmount).
+     *
+     *  fmt.parse(line) trả về: null (không khớp) | 1 taskObject | MẢNG taskObject (1 dòng ->
+     *  nhiều item, vd 'foreign-split') | { error } (khớp cú pháp nhưng dữ liệu sai). Một định dạng
+     *  mới có thể sinh task mang format đã có (vd 'equivalent-amount') để dùng lại processor/cột.
      * ========================================================================= */
 
     const LINE_FORMATS = [
@@ -95,7 +99,77 @@
                 return { format: 'equivalent-amount', id: m[1], equivalentAmount: rawAmount };
             },
         },
+        {
+            id: 'foreign-split',
+            label: '(<ngoại tệ 1> + <ngoại tệ 2> ... <TIỀN TỆ>) #<id 1> #<id 2> ... <Equivalent Amount tổng>'
+                + ' — ví dụ: (35.18 + 70.37 USD) #46621 #46622 2,857,070',
+            /**
+             * Một dòng sinh ra NHIỀU task (mỗi payment item 1 task, cùng format 'equivalent-amount'
+             * nên dùng lại processor/cột sẵn có). Equivalent Amount tổng được chia theo tỉ lệ từng
+             * khoản ngoại tệ, xem splitEquivalentAmount().
+             * @returns {object[]|{error:string}|null} mảng task | lỗi dữ liệu | null nếu không khớp cú pháp
+             */
+            parse(line) {
+                const m = line.match(/^\(\s*([\d.,]+(?:\s*\+\s*[\d.,]+)*)\s*([A-Za-z]{3})\s*\)\s*((?:#\d+\s+)+)([\d.,]+)\s*$/);
+                if (!m) {
+                    // Có phần "(ngoại tệ ... TIỀN TỆ) #id #id ..." nhưng không có số tổng ở cuối.
+                    if (/^\(\s*[\d.,]+(?:\s*\+\s*[\d.,]+)*\s*[A-Za-z]{3}\s*\)\s*(?:#\d+\s*)+$/.test(line)) {
+                        return { error: 'thiếu Equivalent Amount tổng ở cuối dòng (ví dụ: ... #46621 #46622 2,857,070)' };
+                    }
+                    return null;
+                }
+
+                const currency = m[2].toUpperCase();
+                const foreignRaw = m[1].split('+').map((s) => s.trim());
+                const foreign = foreignRaw.map(parseAmountNumber);
+                const ids = m[3].match(/\d+/g);
+                const total = Math.round(parseAmountNumber(m[4]));
+
+                if (foreign.length !== ids.length) {
+                    return { error: `số khoản ngoại tệ (${foreign.length}) khác số payment item (${ids.length})` };
+                }
+                if (foreign.some((v) => !isFinite(v) || v <= 0)) {
+                    return { error: 'các khoản ngoại tệ phải là số > 0' };
+                }
+                if (!isFinite(total) || total <= 0) {
+                    return { error: 'Equivalent Amount tổng không hợp lệ' };
+                }
+
+                const amounts = splitEquivalentAmount(total, foreign);
+                return ids.map((id, i) => ({
+                    format: 'equivalent-amount',
+                    id,
+                    equivalentAmount: String(amounts[i]),
+                    note: `${foreignRaw[i]} ${currency}`,
+                }));
+            },
+        },
     ];
+
+    /** Chuyển chuỗi số "1,234.56" (',' phân nghìn, '.' thập phân) thành number. */
+    function parseAmountNumber(raw) {
+        return parseFloat(String(raw).replace(/,/g, ''));
+    }
+
+    /**
+     * Chia `total` (số nguyên) theo tỉ lệ các khoản ngoại tệ. Mỗi khoản làm tròn đến hàng đơn vị;
+     * khoản CUỐI = total - tổng các khoản trước để tổng khớp tuyệt đối (không lệch do làm tròn).
+     */
+    function splitEquivalentAmount(total, foreign) {
+        const sum = foreign.reduce((a, b) => a + b, 0);
+        const result = [];
+        let allocated = 0;
+        foreign.forEach((f, i) => {
+            if (i === foreign.length - 1) {
+                result.push(total - allocated);
+            } else {
+                const part = Math.round((total * f) / sum);
+                result.push(part);
+                allocated += part;
+            }
+        });
+        return result;
+    }
 
     // Quy trình xử lý tự động cho từng định dạng: { <formatId>: async function(entry, job) }.
     // Khai báo sau khi các hàm processXxx được định nghĩa (hoisting của function declaration).
@@ -150,19 +224,27 @@
                 if (parsed) break;
             }
 
-            if (!parsed || !parsed.id) {
+            // parse() có thể trả: null | task | mảng task | { error } (khớp cú pháp nhưng sai dữ liệu).
+            if (parsed && parsed.error) {
+                invalidLines.push({ lineNo: idx + 1, text: `${line} — ${parsed.error}` });
+                return;
+            }
+            const parsedTasks = parsed ? [].concat(parsed).filter((t) => t && t.id) : [];
+            if (!parsedTasks.length) {
                 invalidLines.push({ lineNo: idx + 1, text: line });
                 return;
             }
 
-            // Ghi nhận mọi lần id xuất hiện để phát hiện trùng.
-            const lineNos = idToLineNos.get(parsed.id) || [];
-            lineNos.push(idx + 1);
-            idToLineNos.set(parsed.id, lineNos);
+            parsedTasks.forEach((task) => {
+                // Ghi nhận mọi lần id xuất hiện để phát hiện trùng.
+                const lineNos = idToLineNos.get(task.id) || [];
+                lineNos.push(idx + 1);
+                idToLineNos.set(task.id, lineNos);
 
-            if (seen.has(parsed.id)) return; // đã có task cho id này -> chỉ giữ lần đầu
-            seen.add(parsed.id);
-            tasks.push(parsed);
+                if (seen.has(task.id)) return; // đã có task cho id này -> chỉ giữ lần đầu
+                seen.add(task.id);
+                tasks.push(task);
+            });
         });
 
         const duplicateIds = [];
@@ -762,10 +844,35 @@
     let modalRoot = null;
     // Chế độ hiển thị hiện tại của modal: 'input' (nhập danh sách) hoặc 'progress' (xem tiến trình).
     let modalMode = 'input';
-    // true = tự cuộn bảng log xuống cuối mỗi lần render. Reset về true mỗi lần trang load (module
-    // nạp lại) nên sau mỗi lần reload giữa các item, người dùng luôn thấy item mới nhất. Tắt tạm
-    // khi user chủ động cuộn lên đọc log cũ, bật lại khi họ cuộn về sát đáy.
-    let progressStickToBottom = true;
+    // true = mỗi lần render, tự cuộn bảng log tới dòng ĐANG XỬ LÝ (tr[data-current="1"]). Reset về
+    // true mỗi lần trang load (module nạp lại) nên sau mỗi lần reload giữa các item, người dùng
+    // luôn thấy item đang chạy. Tắt khi user chủ động cuộn khỏi dòng đó, bật lại khi họ cuộn sao
+    // cho dòng đang xử lý nằm trong vùng nhìn (hoặc khi bắt đầu job mới).
+    let followCurrent = true;
+    // scrollTop do chính script đặt ở lần cuộn tự động gần nhất, để listener 'scroll' phân biệt
+    // sự kiện cuộn của script với cuộn tay của user.
+    let lastAutoScrollTop = -1;
+
+    /** Dòng đang xử lý có đang nằm (dù một phần) trong vùng nhìn của bảng log, dưới thead dính không. */
+    function isCurrentRowVisible(logEl, row) {
+        const thead = logEl.querySelector('thead');
+        const headH = thead ? thead.offsetHeight : 0;
+        const lr = logEl.getBoundingClientRect();
+        const rr = row.getBoundingClientRect();
+        return rr.bottom > lr.top + headH && rr.top < lr.bottom;
+    }
+
+    /** Cuộn bảng log sao cho dòng đang xử lý nằm giữa vùng nhìn (phần dưới thead dính). */
+    function scrollCurrentRowIntoView(logEl, row) {
+        const thead = logEl.querySelector('thead');
+        const headH = thead ? thead.offsetHeight : 0;
+        const lr = logEl.getBoundingClientRect();
+        const rr = row.getBoundingClientRect();
+        const rowTop = rr.top - lr.top + logEl.scrollTop;
+        const spare = Math.max(0, (logEl.clientHeight - headH - rr.height) / 2);
+        logEl.scrollTop = rowTop - headH - spare;
+        lastAutoScrollTop = logEl.scrollTop;
+    }
     // Vị trí modal đã lưu (nếu user từng kéo), đọc 1 lần khi script khởi động.
     let modalPosition = loadModalPosition();
 
@@ -852,6 +959,10 @@
      * sát/thao tác trên trang bên dưới trong lúc script đang tự động chạy.
      */
     function renderModal() {
+        // Modal được dựng lại từ đầu mỗi lần -> nhớ vị trí cuộn của bảng log để khôi phục khi
+        // không ở chế độ bám dòng đang xử lý.
+        const prevLog = modalRoot && modalRoot.querySelector('.fpcb-log');
+        const prevScrollTop = prevLog ? prevLog.scrollTop : 0;
         closeModal();
 
         const job = loadJob();
@@ -903,11 +1014,18 @@
         document.body.appendChild(modal);
         modalRoot = modal;
 
-        // Modal đã vào DOM (có layout thật) -> cuộn bảng log xuống item mới nhất để người dùng
-        // theo dõi được tiến trình sau mỗi lần trang tự reload. Bỏ qua nếu user đang cuộn lên đọc.
+        // Modal đã vào DOM (có layout thật) -> cuộn bảng log tới dòng đang xử lý để người dùng
+        // theo dõi được tiến trình sau mỗi lần trang tự reload. Nếu user đang cuộn đi chỗ khác
+        // (hoặc job đã xong, không còn dòng đang xử lý) thì giữ nguyên vị trí cuộn trước đó.
         const logEl = modal.querySelector('.fpcb-log');
-        if (logEl && progressStickToBottom) {
-            logEl.scrollTop = logEl.scrollHeight;
+        if (logEl) {
+            const currentRow = logEl.querySelector('tr[data-current="1"]');
+            if (currentRow && followCurrent) {
+                scrollCurrentRowIntoView(logEl, currentRow);
+            } else {
+                logEl.scrollTop = prevScrollTop;
+                lastAutoScrollTop = logEl.scrollTop;
+            }
         }
     }
 
@@ -937,7 +1055,7 @@
         const textarea = document.createElement('textarea');
         textarea.className = 'fpcb-textarea';
         textarea.setAttribute('wrap', 'off'); // mỗi dòng logic = 1 dòng hiển thị -> số dòng khớp 1-1
-        textarea.placeholder = '#123456   1,234,567.00\n#234567\t2000000';
+        textarea.placeholder = '#123456   1,234,567.00\n#234567\t2000000\n(35.18 + 70.37 USD) #46621 #46622 2,857,070';
         editor.appendChild(textarea);
 
         body.appendChild(editor);
@@ -956,7 +1074,7 @@
 
         const hint = document.createElement('div');
         hint.className = 'fpcb-hint';
-        hint.textContent = 'Các giá trị trên một dòng cách nhau bởi một hoặc nhiều khoảng trắng / tab. Equivalent Amount chỉ gồm chữ số, dấu phẩy, dấu chấm.';
+        hint.textContent = 'Các giá trị trên một dòng cách nhau bởi một hoặc nhiều khoảng trắng / tab. Equivalent Amount chỉ gồm chữ số, dấu phẩy, dấu chấm. Định dạng ngoại tệ: số khoản = số payment item (khoản thứ i ↔ item thứ i); Equivalent Amount chia theo tỉ lệ, item cuối nhận phần dư để tổng khớp.';
         body.appendChild(hint);
 
         const preview = document.createElement('div');
@@ -968,7 +1086,7 @@
             const parts = [];
             if (tasks.length) {
                 parts.push(`Đã nhận diện ${tasks.length} item:`);
-                parts.push(tasks.map((t) => `#${t.id} → ${t.equivalentAmount}`).join(', '));
+                parts.push(tasks.map((t) => `#${t.id} → ${t.equivalentAmount}${t.note ? ` (${t.note})` : ''}`).join(', '));
             }
             preview.textContent = parts.join(' ');
 
@@ -1071,8 +1189,14 @@
             }
         };
 
-        job.log.forEach((entry) => {
+        // Dòng đang xử lý: item có status 'processing'; nếu chưa có (vừa reload sang trang item,
+        // processCurrentItem chưa kịp đặt trạng thái) thì lấy item job.index trỏ tới.
+        let currentIdx = job.log.findIndex((e) => e.status === 'processing');
+        if (currentIdx < 0 && !finished && job.log[job.index]) currentIdx = job.index;
+
+        job.log.forEach((entry, entryIdx) => {
             const tr = document.createElement('tr');
+            if (entryIdx === currentIdx) tr.dataset.current = '1';
             const tdId = document.createElement('td');
             tdId.innerHTML = `<a href="${getExpectedUrl(entry.id)}" target="_blank">#${entry.id}</a>`;
             tr.appendChild(tdId);
@@ -1092,10 +1216,12 @@
         const logWrap = document.createElement('div');
         logWrap.className = 'fpcb-log';
         logWrap.appendChild(table);
-        // Người dùng cuộn lên đọc log cũ -> tạm ngừng bám đáy; cuộn lại sát đáy -> bật lại.
+        // Bỏ qua sự kiện cuộn do chính script gây ra. User cuộn tay khỏi dòng đang xử lý ->
+        // ngừng bám; cuộn sao cho dòng đó vào vùng nhìn -> bám lại.
         logWrap.addEventListener('scroll', () => {
-            progressStickToBottom =
-                logWrap.scrollHeight - logWrap.scrollTop - logWrap.clientHeight <= 8;
+            if (Math.abs(logWrap.scrollTop - lastAutoScrollTop) < 1) return;
+            const row = logWrap.querySelector('tr[data-current="1"]');
+            if (row) followCurrent = isCurrentRowVisible(logWrap, row);
         });
         body.appendChild(logWrap);
 
@@ -1171,6 +1297,7 @@
         // Xoá job cũ (nếu còn) trước khi dựng job mới, để merge cờ `stopped` trong saveJob()
         // không vô tình khiến job mới bị đánh dấu đã dừng ngay từ đầu.
         clearJob();
+        followCurrent = true;
 
         const ids = tasks.map((t) => t.id);
         const tasksById = {};
