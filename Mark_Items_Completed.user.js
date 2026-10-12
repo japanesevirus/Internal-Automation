@@ -1,11 +1,16 @@
 // ==UserScript==
 // @name         Mark Items Completed
 // @namespace    http://tampermonkey.net/
-// @version      1.2
-// @description  Tự động bấm Paid / Post Check Done hàng loạt cho danh sách Payment Item; có tuỳ chọn chỉ áp dụng cho item đang có tag "Ready for Auto Charge" (kèm đổi tag sang "Ready for Auto Charge ► Checked") hoặc áp dụng cho mọi item bất kể tag.
+// @version      1.3
+// @description  Tự động bấm Paid / Post Check Done hàng loạt cho danh sách Payment Item; có tuỳ chọn chỉ áp dụng cho item đang có tag "Ready for Auto Charge" (kèm đổi tag sang "Ready for Auto Charge ► Checked") hoặc áp dụng cho mọi item bất kể tag. Có thể tải danh sách item từ EmailAction và tự archive các dòng đã xử lý xong.
 // @author       Gemini AI
 // @match        https://finplan.saigontechnology.vn/*
 // @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
+// @connect      *
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -62,6 +67,10 @@
      *                         1 lỗi) thì giai đoạn 2 (Paid) và 3 (Post Check Done) bị skip theo.
      *      false            = giai đoạn 2, 3 LUÔN được chạy cho mọi item, bất kể item có tag
      *                         TAG_SOURCE hay không, và bất kể giai đoạn 1 skip/lỗi hay thành công.
+     *    replacements: [{ id: number, items: string[] }],  // (tuỳ chọn) các dòng EmailAction đã tải
+     *      vào danh sách; sau khi job kết thúc, dòng nào có MỌI item đều không lỗi sẽ được archive.
+     *    archiveStarted: boolean,  // đã chạy bước archive hay chưa (chống chạy lặp qua các lần reload)
+     *    archiveResults: { [replacementId]: { ok: boolean, message: string } },
      *    log: [{
      *      id: string,
      *      status: 'pending'|'processing'|'success'|'skipped'|'error',  // trạng thái tổng của item
@@ -123,6 +132,90 @@
      */
     function isJobFinished(job) {
         return !job || job.index >= job.ids.length || job.stopped;
+    }
+
+    /* =========================================================================
+     *  EmailAction external API (/api/external/v1/schedule-replacements)
+     *  - Base URL + API key do user tự cấu hình (menu Tampermonkey "Cấu hình EmailAction"),
+     *    lưu bằng GM_setValue. API dành cho server-to-server, không có CORS nên bắt buộc gọi
+     *    qua GM_xmlhttpRequest (@connect *).
+     * ========================================================================= */
+    const EA_BASE_URL_KEY = 'fpmp_ea_base_url';
+    const EA_API_KEY_KEY = 'fpmp_ea_api_key';
+    const EA_PAGE_SIZE = 500;
+
+    function getEmailActionConfig() {
+        return {
+            baseUrl: (GM_getValue(EA_BASE_URL_KEY, '') || '').trim().replace(/\/+$/, ''),
+            apiKey: (GM_getValue(EA_API_KEY_KEY, '') || '').trim(),
+        };
+    }
+
+    /** Hỏi user Base URL + API key rồi lưu. Trả về true nếu cấu hình đủ cả hai. */
+    function openEmailActionConfig() {
+        const cur = getEmailActionConfig();
+        const baseUrl = prompt('EmailAction - Base URL (vd: https://emailaction.example.com):', cur.baseUrl);
+        if (baseUrl === null) return false;
+        const apiKey = prompt('EmailAction - API key (dạng ea_…, tạo ở trang /account):', cur.apiKey);
+        if (apiKey === null) return false;
+        GM_setValue(EA_BASE_URL_KEY, baseUrl.trim().replace(/\/+$/, ''));
+        GM_setValue(EA_API_KEY_KEY, apiKey.trim());
+        const next = getEmailActionConfig();
+        return !!(next.baseUrl && next.apiKey);
+    }
+
+    /**
+     * Gọi 1 endpoint EmailAction. Resolve với JSON body khi HTTP 2xx và `ok !== false`;
+     * reject với Error(message) cho mọi lỗi mạng / HTTP / `{ok:false,error}`.
+     */
+    function emailActionRequest(method, path, body) {
+        const { baseUrl, apiKey } = getEmailActionConfig();
+        return new Promise((resolve, reject) => {
+            if (!baseUrl || !apiKey) return reject(new Error('Chưa cấu hình EmailAction (Base URL / API key).'));
+            const headers = { Authorization: `Bearer ${apiKey}` };
+            if (body !== undefined) headers['Content-Type'] = 'application/json';
+            GM_xmlhttpRequest({
+                method,
+                url: `${baseUrl}/api/external/v1${path}`,
+                headers,
+                data: body !== undefined ? JSON.stringify(body) : undefined,
+                timeout: 30000,
+                onload: (res) => {
+                    let json = null;
+                    try { json = JSON.parse(res.responseText); } catch (e) { /* không phải JSON */ }
+                    if (res.status >= 200 && res.status < 300 && json && json.ok !== false) return resolve(json);
+                    reject(new Error((json && json.error) || `HTTP ${res.status}`));
+                },
+                onerror: () => reject(new Error('Lỗi mạng khi gọi EmailAction.')),
+                ontimeout: () => reject(new Error('EmailAction không phản hồi (timeout).')),
+            });
+        });
+    }
+
+    /**
+     * Tải mọi dòng "giao dịch lên lịch đã thay" chưa archive (phân trang theo limit/offset) và
+     * trích payment item id (#<số>) từ description (ưu tiên `new.description`, dự phòng
+     * `scheduled.description`). Dòng không có id nào bị bỏ qua nhưng được đếm.
+     * @returns {Promise<{replacements: {id:number, items:string[]}[], noItemRows: number}>}
+     */
+    async function fetchEmailActionReplacements() {
+        const replacements = [];
+        let noItemRows = 0;
+        let offset = 0;
+        for (;;) {
+            const res = await emailActionRequest(
+                'GET', `/schedule-replacements?status=active&limit=${EA_PAGE_SIZE}&offset=${offset}`);
+            const items = res.items || [];
+            items.forEach((it) => {
+                let ids = parseIds(it.new && it.new.description);
+                if (!ids.length) ids = parseIds(it.scheduled && it.scheduled.description);
+                if (ids.length) replacements.push({ id: it.id, items: ids });
+                else noItemRows += 1;
+            });
+            offset += items.length;
+            if (items.length < EA_PAGE_SIZE || offset >= (res.active_count || 0)) break;
+        }
+        return { replacements, noItemRows };
     }
 
     /* =========================================================================
@@ -634,6 +727,7 @@
         saveJob(job);
         if (isJobFinished(job)) {
             renderModal();
+            archiveCompletedReplacements();
             return;
         }
         const nextId = job.ids[job.index];
@@ -642,10 +736,49 @@
             const latest = loadJob();
             if (!latest || latest.stopped || latest.index >= latest.ids.length) {
                 renderModal();
+                archiveCompletedReplacements();
                 return;
             }
             location.href = getExpectedUrl(nextId);
         }, 700);
+    }
+
+    /**
+     * Sau khi job kết thúc (hết danh sách hoặc user dừng): archive trên EmailAction mọi dòng đã
+     * tải mà TẤT CẢ item của dòng đó đều có trong job và có status 'success' hoặc 'skipped'
+     * (không lỗi, không còn pending/processing). Chạy tối đa 1 lần mỗi job nhờ cờ
+     * `archiveStarted` (đặt và lưu TRƯỚC khi gọi API để reload giữa chừng không gọi lặp).
+     * Kết quả từng dòng ghi vào job.archiveResults để hiển thị ở view tiến trình.
+     */
+    async function archiveCompletedReplacements() {
+        const job = loadJob();
+        if (!job || !isJobFinished(job) || job.archiveStarted) return;
+        job.archiveStarted = true;
+        job.archiveResults = {};
+        saveJob(job);
+        const reps = job.replacements || [];
+        if (!reps.length) return;
+
+        const statusById = new Map(job.log.map((e) => [e.id, e.status]));
+        for (const rep of reps) {
+            const ok = rep.items.every((id) => {
+                const s = statusById.get(id);
+                return s === 'success' || s === 'skipped';
+            });
+            if (!ok) {
+                job.archiveResults[rep.id] = { ok: false, message: 'Chưa archive: có item lỗi / chưa xử lý.' };
+                continue;
+            }
+            try {
+                await emailActionRequest('PATCH', `/schedule-replacements/${rep.id}`, { archived: true });
+                job.archiveResults[rep.id] = { ok: true, message: 'Đã archive.' };
+            } catch (e) {
+                job.archiveResults[rep.id] = { ok: false, message: `Archive lỗi: ${e.message}` };
+            }
+            saveJob(job);
+        }
+        saveJob(job);
+        renderModal();
     }
 
     /* =========================================================================
@@ -699,6 +832,8 @@
                 border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 13px;
             }
             .fpmp-hint { font-size: 12px; color: #888; margin-top: 6px; }
+            .fpmp-load-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+            .fpmp-load-row .fpmp-hint { margin-top: 0; }
             .fpmp-checkbox-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; }
             .fpmp-checkbox-row input[type="checkbox"] { margin-top: 3px; }
             .fpmp-checkbox-row label { font-size: 13px; color: #333; cursor: pointer; }
@@ -972,11 +1107,54 @@
         body.appendChild(preview);
 
         // Preview realtime danh sách id nhận diện được, giúp user tự kiểm tra trước khi bấm Bắt đầu.
-        textarea.addEventListener('input', () => {
+        const updatePreview = () => {
             const ids = parseIds(textarea.value);
             preview.textContent = ids.length
                 ? `Đã nhận diện ${ids.length} payment item: ${ids.join(', ')}`
                 : '';
+        };
+        textarea.addEventListener('input', updatePreview);
+
+        // Nạp danh sách item từ EmailAction (các dòng "giao dịch lên lịch đã thay" chưa archive).
+        // Các dòng đã tải được nhớ lại để archive sau khi job xong.
+        let loadedReplacements = [];
+        const loadRow = document.createElement('div');
+        loadRow.className = 'fpmp-load-row';
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'fpmp-btn fpmp-btn--default';
+        loadBtn.type = 'button';
+        loadBtn.textContent = 'Tải từ EmailAction';
+        const configBtn = document.createElement('button');
+        configBtn.className = 'fpmp-btn fpmp-btn--default';
+        configBtn.type = 'button';
+        configBtn.textContent = '⚙ Cấu hình';
+        configBtn.addEventListener('click', openEmailActionConfig);
+        const loadStatus = document.createElement('span');
+        loadStatus.className = 'fpmp-hint';
+        loadRow.appendChild(loadBtn);
+        loadRow.appendChild(configBtn);
+        loadRow.appendChild(loadStatus);
+        body.insertBefore(loadRow, hint);
+
+        loadBtn.addEventListener('click', async () => {
+            const cfg = getEmailActionConfig();
+            if ((!cfg.baseUrl || !cfg.apiKey) && !openEmailActionConfig()) return;
+            loadBtn.disabled = true;
+            loadStatus.textContent = 'Đang tải...';
+            try {
+                const { replacements, noItemRows } = await fetchEmailActionReplacements();
+                loadedReplacements = replacements;
+                const ids = [];
+                replacements.forEach((r) => r.items.forEach((id) => { if (!ids.includes(id)) ids.push(id); }));
+                textarea.value = ids.map((id) => `#${id}`).join(' ');
+                updatePreview();
+                loadStatus.textContent = `Đã tải ${replacements.length} dòng (${ids.length} item)`
+                    + (noItemRows ? `; ${noItemRows} dòng không có #item nên bị bỏ qua.` : '.');
+            } catch (e) {
+                loadStatus.textContent = `Lỗi: ${e.message}`;
+            } finally {
+                loadBtn.disabled = false;
+            }
         });
 
         // Checkbox "Auto-Charge Item only" - mặc định CHECK (giữ hành vi gốc: chỉ xử lý item có tag
@@ -1015,7 +1193,7 @@
                 alert('Không nhận diện được payment item id nào. Vui lòng kiểm tra lại.');
                 return;
             }
-            startJob(ids, checkbox.checked);
+            startJob(ids, checkbox.checked, loadedReplacements);
         });
         footer.appendChild(startBtn);
     }
@@ -1042,6 +1220,20 @@
             summary.textContent = `Đang xử lý ${doneCount}/${job.ids.length} item... (Trang sẽ tự tải lại giữa các item, vui lòng không đóng tab)`;
         }
         body.appendChild(summary);
+
+        // Kết quả archive các dòng EmailAction (chỉ có khi job được nạp từ EmailAction).
+        if (finished && job.replacements && job.replacements.length) {
+            const results = job.archiveResults || {};
+            const archivedCount = Object.values(results).filter((r) => r.ok).length;
+            const failed = Object.entries(results).filter(([, r]) => !r.ok);
+            const archiveEl = document.createElement('div');
+            archiveEl.className = 'fpmp-summary';
+            archiveEl.textContent = job.archiveStarted
+                ? `EmailAction: đã archive ${archivedCount}/${job.replacements.length} dòng.`
+                    + failed.map(([id, r]) => ` [#${id}: ${r.message}]`).join('')
+                : 'EmailAction: đang archive các dòng đã xử lý xong...';
+            body.appendChild(archiveEl);
+        }
 
         // Bảng chi tiết: mỗi dòng ứng với 1 payment item id, kèm link mở nhanh sang trang edit,
         // và 3 cột riêng cho 3 giai đoạn xử lý (Tag & Save / Paid / Post Check Done), mỗi cột hiển
@@ -1133,6 +1325,9 @@
                 currentJob.stopMode = stopNow ? 'now' : 'after-current';
                 saveJob(currentJob);
                 renderModal();
+                // Dừng ngay: item đang xử lý không còn gọi advanceJob nên phải chốt archive tại đây.
+                // ('after-current' sẽ tự chốt khi advanceJob chạy xong item hiện tại.)
+                if (stopNow) archiveCompletedReplacements();
             });
             footer.appendChild(stopBtn);
 
@@ -1190,8 +1385,9 @@
      * item đầu tiên nếu trang hiện tại chưa đúng (ví dụ user bấm "Bắt đầu" ngay tại trang chủ).
      * @param {string[]} ids - danh sách payment item id đã parse.
      * @param {boolean} autoChargeOnly - giá trị checkbox "Auto-Charge Item only" lúc bấm "Bắt đầu".
+     * @param {{id:number, items:string[]}[]} replacements - các dòng EmailAction đã tải (để archive).
      */
-    function startJob(ids, autoChargeOnly) {
+    function startJob(ids, autoChargeOnly, replacements) {
         // Xoá job cũ (nếu còn) trước khi dựng job mới, để merge cờ `stopped` trong saveJob()
         // không vô tình khiến job mới bị đánh dấu đã dừng ngay từ đầu.
         clearJob();
@@ -1203,6 +1399,8 @@
             stopped: false,
             stopMode: null,   // null | 'now' | 'after-current' - đặt khi user bấm "Dừng lại"
             autoChargeOnly: autoChargeOnly !== false,
+            replacements: replacements || [],
+            archiveStarted: false,
             createdAt: Date.now(),
             log: ids.map((id) => ({
                 id,
@@ -1272,6 +1470,7 @@
             // Job đã xong từ lần trước (user chưa bấm Đóng) - chỉ hiển thị lại tổng kết.
             modalMode = 'progress';
             renderModal();
+            archiveCompletedReplacements(); // no-op nếu đã chạy rồi
             return;
         }
 
@@ -1289,6 +1488,8 @@
             location.href = getExpectedUrl(expectedId);
         }
     }
+
+    GM_registerMenuCommand('Cấu hình EmailAction', () => openEmailActionConfig());
 
     init();
 })();
