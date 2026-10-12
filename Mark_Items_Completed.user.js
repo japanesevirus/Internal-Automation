@@ -70,7 +70,7 @@
      *    replacements: [{ id: number, items: string[] }],  // (tuỳ chọn) các dòng EmailAction đã tải
      *      vào danh sách; sau khi job kết thúc, dòng nào có MỌI item đều không lỗi sẽ được archive.
      *    archiveStarted: boolean,  // đã chạy bước archive hay chưa (chống chạy lặp qua các lần reload)
-     *    archiveResults: { [replacementId]: { ok: boolean, message: string } },
+     *    archiveResults: { [replacementId]: { status: 'success'|'skipped'|'error', message: string } },
      *    log: [{
      *      id: string,
      *      status: 'pending'|'processing'|'success'|'skipped'|'error',  // trạng thái tổng của item
@@ -151,17 +151,19 @@
         };
     }
 
-    /** Hỏi user Base URL + API key rồi lưu. Trả về true nếu cấu hình đủ cả hai. */
+    /**
+     * Mở màn hình cấu hình EmailAction (thay nội dung modal đang mở, không chồng cửa sổ khác).
+     * Không mở khi job đang chạy dở để không che view tiến trình.
+     */
     function openEmailActionConfig() {
-        const cur = getEmailActionConfig();
-        const baseUrl = prompt('EmailAction - Base URL (vd: https://emailaction.example.com):', cur.baseUrl);
-        if (baseUrl === null) return false;
-        const apiKey = prompt('EmailAction - API key (dạng ea_…, tạo ở trang /account):', cur.apiKey);
-        if (apiKey === null) return false;
-        GM_setValue(EA_BASE_URL_KEY, baseUrl.trim().replace(/\/+$/, ''));
-        GM_setValue(EA_API_KEY_KEY, apiKey.trim());
-        const next = getEmailActionConfig();
-        return !!(next.baseUrl && next.apiKey);
+        const job = loadJob();
+        if (job && !isJobFinished(job)) {
+            alert('Đang có job chạy dở. Hãy dừng hoặc chờ job xong rồi mới cấu hình EmailAction.');
+            return;
+        }
+        if (modalMode !== 'config') configReturnMode = modalMode;
+        modalMode = 'config';
+        renderModal();
     }
 
     /**
@@ -196,10 +198,12 @@
      * Tải mọi dòng "giao dịch lên lịch đã thay" chưa archive (phân trang theo limit/offset) và
      * trích payment item id (#<số>) từ description (ưu tiên `new.description`, dự phòng
      * `scheduled.description`). Dòng không có id nào bị bỏ qua nhưng được đếm.
-     * @returns {Promise<{replacements: {id:number, items:string[]}[], noItemRows: number}>}
+     * @returns {Promise<{replacements: {id:number, items:string[]}[], rows: object[], noItemRows: number}>}
+     *   `replacements` gọn (đưa vào job); `rows` đủ thông tin hiển thị (kể cả dòng không có #item).
      */
     async function fetchEmailActionReplacements() {
         const replacements = [];
+        const rows = [];
         let noItemRows = 0;
         let offset = 0;
         for (;;) {
@@ -211,11 +215,25 @@
                 if (!ids.length) ids = parseIds(it.scheduled && it.scheduled.description);
                 if (ids.length) replacements.push({ id: it.id, items: ids });
                 else noItemRows += 1;
+                const sch = it.scheduled || {};
+                const nw = it.new || {};
+                rows.push({
+                    id: it.id,
+                    items: ids,
+                    txDate: nw.date,
+                    wallet: sch.wallet_name || '',
+                    amount: nw.amount != null ? nw.amount : sch.amount,
+                    currency: sch.currency || '',
+                    fcAmount: nw.fc_amount,
+                    description: nw.description || sch.description || '',
+                    removed: it.removed !== false,
+                    removeError: it.remove_error || '',
+                });
             });
             offset += items.length;
             if (items.length < EA_PAGE_SIZE || offset >= (res.active_count || 0)) break;
         }
-        return { replacements, noItemRows };
+        return { replacements, rows, noItemRows };
     }
 
     /* =========================================================================
@@ -766,14 +784,14 @@
                 return s === 'success' || s === 'skipped';
             });
             if (!ok) {
-                job.archiveResults[rep.id] = { ok: false, message: 'Chưa archive: có item lỗi / chưa xử lý.' };
+                job.archiveResults[rep.id] = { status: 'skipped', message: 'Không archive: có item lỗi / chưa xử lý.' };
                 continue;
             }
             try {
                 await emailActionRequest('PATCH', `/schedule-replacements/${rep.id}`, { archived: true });
-                job.archiveResults[rep.id] = { ok: true, message: 'Đã archive.' };
+                job.archiveResults[rep.id] = { status: 'success', message: 'Đã archive.' };
             } catch (e) {
-                job.archiveResults[rep.id] = { ok: false, message: `Archive lỗi: ${e.message}` };
+                job.archiveResults[rep.id] = { status: 'error', message: e.message };
             }
             saveJob(job);
         }
@@ -832,6 +850,21 @@
                 border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 13px;
             }
             .fpmp-hint { font-size: 12px; color: #888; margin-top: 6px; }
+            .fpmp-row--muted { opacity: .55; }
+            .fpmp-tabs { display: flex; gap: 4px; border-bottom: 1px solid #ebedf2; margin-bottom: 12px; }
+            .fpmp-tab {
+                border: none; background: none; padding: 8px 14px; font-size: 13px; font-weight: 600;
+                color: #777; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+            }
+            .fpmp-tab--active { color: #636ae8; border-bottom-color: #636ae8; }
+            .fpmp-field { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+            .fpmp-field label { width: 100%; font-size: 13px; font-weight: 600; color: #333; }
+            .fpmp-input {
+                flex: 1; min-width: 0; box-sizing: border-box;
+                border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 13px;
+            }
+            .fpmp-toggle { padding: 8px 12px; }
+            .fpmp-config-error { color: #e43f3f; font-size: 12px; margin-top: 8px; min-height: 16px; }
             .fpmp-load-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
             .fpmp-load-row .fpmp-hint { margin-top: 0; }
             .fpmp-checkbox-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; }
@@ -879,6 +912,7 @@
     function onFabClick() {
         const job = loadJob();
         modalMode = job ? 'progress' : 'input';
+        inputDraft.autoLoaded = false; // mỗi lần mở lại dialog -> tab EmailAction tự tải lại (nếu đã cấu hình)
         renderModal();
     }
 
@@ -886,6 +920,21 @@
     let modalRoot = null;
     // Chế độ hiển thị hiện tại của modal: 'input' (nhập danh sách id) hoặc 'progress' (xem tiến trình).
     let modalMode = 'input';
+    // Màn hình cấu hình EmailAction quay về mode này khi Lưu / Huỷ.
+    let configReturnMode = 'input';
+    // Nháp của view nhập liệu: giữ nội dung khi chuyển sang màn hình cấu hình rồi quay lại.
+    const newInputDraft = () => ({
+        tab: 'ea',            // 'ea' (Tải từ EmailAction) | 'manual' (Nhập tay)
+        manualText: '',       // nội dung textarea tab Nhập tay
+        eaIds: [],            // item id đã tải ở tab EmailAction
+        rows: [],             // các dòng EmailAction đã tải, đủ thông tin để hiển thị bảng
+        replacements: [],     // các dòng EmailAction đã tải (để archive)
+        status: '',           // dòng trạng thái tải
+        loading: false,       // đang gọi API EmailAction
+        autoLoaded: false,    // đã tự tải (hoặc user đã bấm Tải) trong lần mở dialog này
+        autoChargeOnly: true,
+    });
+    let inputDraft = newInputDraft();
     // true = mỗi lần render, tự cuộn bảng log tới dòng ĐANG XỬ LÝ (tr[data-current="1"]). Reset về
     // true mỗi lần trang load (module nạp lại) nên sau mỗi lần reload giữa các item, người dùng
     // luôn thấy item đang chạy. Tắt khi user chủ động cuộn khỏi dòng đó, bật lại khi họ cuộn sao
@@ -1059,7 +1108,9 @@
         footer.className = 'fpmp-modal__footer';
         modal.appendChild(footer);
 
-        if (modalMode === 'input' || !job) {
+        if (modalMode === 'config') {
+            renderConfigView(body, footer);
+        } else if (modalMode === 'input' || !job) {
             renderInputView(body, footer);
         } else {
             renderProgressView(body, footer, job);
@@ -1084,78 +1135,122 @@
     }
 
     /**
-     * Vẽ view nhập liệu: textarea free-text để paste danh sách id, preview số lượng id nhận diện
-     * được (cập nhật realtime khi gõ), nút "Bắt đầu" để khởi tạo job mới.
+     * Vẽ màn hình cấu hình EmailAction: 1 form gồm Base URL + API key (có nút hiện/ẩn), Lưu / Huỷ
+     * đều quay về view trước đó (configReturnMode). Lưu bằng GM_setValue.
+     */
+    function renderConfigView(body, footer) {
+        const cur = getEmailActionConfig();
+
+        const makeField = (labelText, input) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'fpmp-field';
+            const lb = document.createElement('label');
+            lb.textContent = labelText;
+            wrap.appendChild(lb);
+            wrap.appendChild(input);
+            body.appendChild(wrap);
+            return wrap;
+        };
+
+        const intro = document.createElement('div');
+        intro.innerHTML = 'Cấu hình kết nối <b>EmailAction</b> (API key tạo ở trang <b>/account</b> của EmailAction, dạng <b>ea_…</b>).';
+        body.appendChild(intro);
+
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.className = 'fpmp-input';
+        urlInput.placeholder = 'https://emailaction.example.com';
+        urlInput.value = cur.baseUrl;
+        makeField('Base URL', urlInput);
+
+        const keyInput = document.createElement('input');
+        keyInput.type = 'password';
+        keyInput.className = 'fpmp-input';
+        keyInput.placeholder = 'ea_…';
+        keyInput.autocomplete = 'off';
+        keyInput.value = cur.apiKey;
+        const keyWrap = makeField('API key', keyInput);
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'fpmp-btn fpmp-btn--default fpmp-toggle';
+        toggle.textContent = 'Hiện';
+        toggle.addEventListener('click', () => {
+            const show = keyInput.type === 'password';
+            keyInput.type = show ? 'text' : 'password';
+            toggle.textContent = show ? 'Ẩn' : 'Hiện';
+        });
+        keyWrap.appendChild(toggle);
+
+        const error = document.createElement('div');
+        error.className = 'fpmp-config-error';
+        body.appendChild(error);
+
+        const back = () => {
+            modalMode = configReturnMode;
+            renderModal();
+        };
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'fpmp-btn fpmp-btn--default';
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Huỷ';
+        cancelBtn.addEventListener('click', back);
+        footer.appendChild(cancelBtn);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'fpmp-btn fpmp-btn--primary';
+        saveBtn.type = 'button';
+        saveBtn.textContent = 'Lưu';
+        saveBtn.addEventListener('click', () => {
+            const baseUrl = urlInput.value.trim().replace(/\/+$/, '');
+            const apiKey = keyInput.value.trim();
+            if (!/^https?:\/\/[^\s/]+/i.test(baseUrl)) {
+                error.textContent = 'Base URL phải bắt đầu bằng http:// hoặc https://';
+                return;
+            }
+            if (!apiKey) {
+                error.textContent = 'API key không được để trống.';
+                return;
+            }
+            GM_setValue(EA_BASE_URL_KEY, baseUrl);
+            GM_setValue(EA_API_KEY_KEY, apiKey);
+            back();
+        });
+        footer.appendChild(saveBtn);
+    }
+
+    /**
+     * Vẽ view nhập liệu gồm 2 tab (tab EmailAction đứng trước, là mặc định):
+     *  - "Tải từ EmailAction": nút Tải + ⚙ Cấu hình, danh sách item tải về (chỉ đọc). Job tạo từ tab
+     *    này mang theo `replacements` để archive các dòng EmailAction sau khi xong.
+     *  - "Nhập tay": textarea free-text paste danh sách id, preview realtime; không archive gì.
+     * Checkbox "Auto-Charge Item only" và nút "Bắt đầu" dùng chung, lấy danh sách theo tab đang chọn.
+     * Dữ liệu từng tab nằm trong `inputDraft` nên không mất khi chuyển tab / mở màn hình cấu hình.
      */
     function renderInputView(body, footer) {
-        const label = document.createElement('div');
-        label.innerHTML = 'Nhập danh sách Payment Item ID, mỗi id dạng <b>#123456</b>, cách nhau bởi khoảng trắng / xuống dòng.';
-        body.appendChild(label);
-
-        const textarea = document.createElement('textarea');
-        textarea.className = 'fpmp-textarea';
-        textarea.placeholder = '#1234 #2345\n"#4746 #789"';
-        body.appendChild(textarea);
-
-        const hint = document.createElement('div');
-        hint.className = 'fpmp-hint';
-        hint.textContent = 'Dấu " thừa sẽ tự động được loại bỏ trước khi xử lý.';
-        body.appendChild(hint);
-
-        const preview = document.createElement('div');
-        preview.className = 'fpmp-preview';
-        body.appendChild(preview);
-
-        // Preview realtime danh sách id nhận diện được, giúp user tự kiểm tra trước khi bấm Bắt đầu.
-        const updatePreview = () => {
-            const ids = parseIds(textarea.value);
-            preview.textContent = ids.length
-                ? `Đã nhận diện ${ids.length} payment item: ${ids.join(', ')}`
-                : '';
-        };
-        textarea.addEventListener('input', updatePreview);
-
-        // Nạp danh sách item từ EmailAction (các dòng "giao dịch lên lịch đã thay" chưa archive).
-        // Các dòng đã tải được nhớ lại để archive sau khi job xong.
-        let loadedReplacements = [];
-        const loadRow = document.createElement('div');
-        loadRow.className = 'fpmp-load-row';
-        const loadBtn = document.createElement('button');
-        loadBtn.className = 'fpmp-btn fpmp-btn--default';
-        loadBtn.type = 'button';
-        loadBtn.textContent = 'Tải từ EmailAction';
-        const configBtn = document.createElement('button');
-        configBtn.className = 'fpmp-btn fpmp-btn--default';
-        configBtn.type = 'button';
-        configBtn.textContent = '⚙ Cấu hình';
-        configBtn.addEventListener('click', openEmailActionConfig);
-        const loadStatus = document.createElement('span');
-        loadStatus.className = 'fpmp-hint';
-        loadRow.appendChild(loadBtn);
-        loadRow.appendChild(configBtn);
-        loadRow.appendChild(loadStatus);
-        body.insertBefore(loadRow, hint);
-
-        loadBtn.addEventListener('click', async () => {
-            const cfg = getEmailActionConfig();
-            if ((!cfg.baseUrl || !cfg.apiKey) && !openEmailActionConfig()) return;
-            loadBtn.disabled = true;
-            loadStatus.textContent = 'Đang tải...';
-            try {
-                const { replacements, noItemRows } = await fetchEmailActionReplacements();
-                loadedReplacements = replacements;
-                const ids = [];
-                replacements.forEach((r) => r.items.forEach((id) => { if (!ids.includes(id)) ids.push(id); }));
-                textarea.value = ids.map((id) => `#${id}`).join(' ');
-                updatePreview();
-                loadStatus.textContent = `Đã tải ${replacements.length} dòng (${ids.length} item)`
-                    + (noItemRows ? `; ${noItemRows} dòng không có #item nên bị bỏ qua.` : '.');
-            } catch (e) {
-                loadStatus.textContent = `Lỗi: ${e.message}`;
-            } finally {
-                loadBtn.disabled = false;
-            }
+        const tabsEl = document.createElement('div');
+        tabsEl.className = 'fpmp-tabs';
+        [['ea', 'Tải từ EmailAction'], ['manual', 'Nhập tay']].forEach(([key, text]) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'fpmp-tab' + (inputDraft.tab === key ? ' fpmp-tab--active' : '');
+            btn.textContent = text;
+            btn.addEventListener('click', () => {
+                if (inputDraft.tab === key) return;
+                inputDraft.tab = key;
+                renderModal();
+            });
+            tabsEl.appendChild(btn);
         });
+        body.appendChild(tabsEl);
+
+        // Trả về hàm lấy danh sách id của tab đang chọn (dùng khi bấm "Bắt đầu").
+        let getIds;
+        if (inputDraft.tab === 'ea') {
+            getIds = renderEmailActionTab(body);
+        } else {
+            getIds = renderManualTab(body);
+        }
 
         // Checkbox "Auto-Charge Item only" - mặc định CHECK (giữ hành vi gốc: chỉ xử lý item có tag
         // "Ready for Auto Charge"). Bỏ check để công cụ chạy Paid / Post Check Done cho MỌI item
@@ -1166,7 +1261,8 @@
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = checkboxId;
-        checkbox.checked = true;
+        checkbox.checked = inputDraft.autoChargeOnly;
+        checkbox.addEventListener('change', () => { inputDraft.autoChargeOnly = checkbox.checked; });
         const checkboxLabel = document.createElement('label');
         checkboxLabel.htmlFor = checkboxId;
         checkboxLabel.innerHTML = '<b>Auto-Charge Item only</b> — chỉ xử lý item đang có tag '
@@ -1188,14 +1284,195 @@
         startBtn.type = 'button';
         startBtn.textContent = 'Bắt đầu';
         startBtn.addEventListener('click', () => {
-            const ids = parseIds(textarea.value);
+            const ids = getIds();
             if (!ids.length) {
-                alert('Không nhận diện được payment item id nào. Vui lòng kiểm tra lại.');
+                alert(inputDraft.tab === 'ea'
+                    ? 'Chưa có item nào. Hãy bấm "Tải từ EmailAction" trước.'
+                    : 'Không nhận diện được payment item id nào. Vui lòng kiểm tra lại.');
                 return;
             }
-            startJob(ids, checkbox.checked, loadedReplacements);
+            // Chỉ job từ tab EmailAction mới mang replacements (để archive).
+            const replacements = inputDraft.tab === 'ea' ? inputDraft.replacements : [];
+            const autoChargeOnly = checkbox.checked;
+            inputDraft = newInputDraft();
+            startJob(ids, autoChargeOnly, replacements);
         });
         footer.appendChild(startBtn);
+    }
+
+    /** Tab "Tải từ EmailAction". Trả về hàm lấy danh sách id đã tải. */
+    function renderEmailActionTab(body) {
+        const label = document.createElement('div');
+        label.textContent = 'Tải các dòng "giao dịch lên lịch đã thay" chưa archive từ EmailAction; '
+            + 'Payment Item ID được lấy từ các #<số> trong description.';
+        body.appendChild(label);
+
+        const loadRow = document.createElement('div');
+        loadRow.className = 'fpmp-load-row';
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'fpmp-btn fpmp-btn--default';
+        loadBtn.type = 'button';
+        loadBtn.textContent = 'Tải từ EmailAction';
+        const configBtn = document.createElement('button');
+        configBtn.className = 'fpmp-btn fpmp-btn--default';
+        configBtn.type = 'button';
+        configBtn.textContent = '⚙ Cấu hình';
+        configBtn.addEventListener('click', openEmailActionConfig);
+        const loadStatus = document.createElement('span');
+        loadStatus.className = 'fpmp-hint';
+        loadStatus.textContent = inputDraft.status;
+        loadRow.appendChild(loadBtn);
+        loadRow.appendChild(configBtn);
+        loadRow.appendChild(loadStatus);
+        body.appendChild(loadRow);
+
+        // Bảng dữ liệu đã tải (chỉ đọc), mỗi dòng = 1 dòng EmailAction.
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'fpmp-log';
+        body.appendChild(tableWrap);
+        const updatePreview = () => {
+            tableWrap.textContent = '';
+            tableWrap.style.display = inputDraft.rows.length ? '' : 'none';
+            if (!inputDraft.rows.length) return;
+            const table = document.createElement('table');
+            table.className = 'fpmp-table';
+            table.innerHTML = '<thead><tr><th>ID</th><th>Items</th><th>Ngày GD thực tế</th><th>Ví</th>'
+                + '<th>Số tiền</th><th>Mô tả</th><th>GD lên lịch</th></tr></thead>';
+            const tbody = document.createElement('tbody');
+            inputDraft.rows.forEach((r) => {
+                const tr = document.createElement('tr');
+                if (!r.items.length) tr.className = 'fpmp-row--muted';
+                const cell = (text) => {
+                    const td = document.createElement('td');
+                    td.textContent = text;
+                    tr.appendChild(td);
+                    return td;
+                };
+                cell(`#${r.id}`);
+                const tdItems = cell('');
+                if (r.items.length) {
+                    r.items.forEach((id, i) => {
+                        if (i) tdItems.appendChild(document.createTextNode(' '));
+                        const a = document.createElement('a');
+                        a.href = getExpectedUrl(id);
+                        a.target = '_blank';
+                        a.textContent = `#${id}`;
+                        tdItems.appendChild(a);
+                    });
+                } else {
+                    tdItems.textContent = 'không có item';
+                }
+                // new.date là giờ địa phương không mã múi giờ -> new Date() hiểu là giờ máy, đúng ý.
+                const d = r.txDate ? new Date(r.txDate) : null;
+                cell(d && !isNaN(d) ? d.toLocaleString('vi-VN') : (r.txDate || ''));
+                cell(r.wallet);
+                let money = r.amount != null ? `${Number(r.amount).toLocaleString('vi-VN')} ${r.currency}`.trim() : '';
+                if (r.fcAmount != null) money += ` (${Number(r.fcAmount).toLocaleString('vi-VN')})`;
+                cell(money);
+                cell(r.description);
+                // GD lên lịch: trạng thái đã xoá giao dịch lên lịch trên MoneyKeeper hay chưa
+                // (chưa xoá -> kèm lỗi, cần xoá tay).
+                const tdScheduled = cell('');
+                const badge = document.createElement('span');
+                badge.className = `fpmp-status fpmp-status--${r.removed ? 'success' : 'error'}`;
+                badge.textContent = r.removed ? 'Đã xoá' : 'Chưa xoá';
+                tdScheduled.appendChild(badge);
+                if (!r.removed && r.removeError) {
+                    const msg = document.createElement('div');
+                    msg.className = 'fpmp-stage-msg';
+                    msg.textContent = r.removeError;
+                    tdScheduled.appendChild(msg);
+                }
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            tableWrap.appendChild(table);
+        };
+        updatePreview();
+
+        // Tải dữ liệu vào `draft` (bản nháp hiện tại). Cờ `loading` chặn gọi trùng khi modal bị vẽ
+        // lại giữa chừng; xong thì vẽ lại modal nếu user vẫn đang ở tab EmailAction của view nhập liệu.
+        const draft = inputDraft;
+        const load = async () => {
+            if (draft.loading) return;
+            draft.loading = true;
+            draft.autoLoaded = true;
+            draft.status = 'Đang tải...';
+            loadBtn.disabled = true;
+            loadStatus.textContent = draft.status;
+            try {
+                const { replacements, rows, noItemRows } = await fetchEmailActionReplacements();
+                const ids = [];
+                replacements.forEach((r) => r.items.forEach((id) => { if (!ids.includes(id)) ids.push(id); }));
+                draft.replacements = replacements;
+                draft.eaIds = ids;
+                draft.rows = rows;
+                draft.status = `Đã tải ${replacements.length} dòng (${ids.length} item)`
+                    + (noItemRows ? `; ${noItemRows} dòng không có #item nên bị bỏ qua.` : '.');
+            } catch (e) {
+                draft.status = `Lỗi: ${e.message}`;
+            } finally {
+                draft.loading = false;
+            }
+            if (draft === inputDraft && modalMode === 'input' && draft.tab === 'ea' && modalRoot) renderModal();
+        };
+
+        loadBtn.addEventListener('click', () => {
+            const cfg = getEmailActionConfig();
+            if (!cfg.baseUrl || !cfg.apiKey) {
+                openEmailActionConfig(); // chưa cấu hình -> mở màn hình cấu hình, user bấm Tải lại sau
+                return;
+            }
+            load();
+        });
+
+        // Tự tải 1 lần khi mới mở dialog nếu đã cấu hình. Nếu chưa cấu hình thì chưa đánh dấu
+        // autoLoaded, nên sau khi Lưu cấu hình và quay lại sẽ tự tải.
+        if (draft.loading) {
+            loadBtn.disabled = true;
+        } else if (!draft.autoLoaded) {
+            const cfg = getEmailActionConfig();
+            if (cfg.baseUrl && cfg.apiKey) load();
+        }
+
+        return () => inputDraft.eaIds.slice();
+    }
+
+    /** Tab "Nhập tay". Trả về hàm lấy danh sách id parse từ textarea. */
+    function renderManualTab(body) {
+        const label = document.createElement('div');
+        label.innerHTML = 'Nhập danh sách Payment Item ID, mỗi id dạng <b>#123456</b>, cách nhau bởi khoảng trắng / xuống dòng.';
+        body.appendChild(label);
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'fpmp-textarea';
+        textarea.placeholder = '#1234 #2345\n"#4746 #789"';
+        textarea.value = inputDraft.manualText;
+        body.appendChild(textarea);
+
+        const hint = document.createElement('div');
+        hint.className = 'fpmp-hint';
+        hint.textContent = 'Dấu " thừa sẽ tự động được loại bỏ trước khi xử lý.';
+        body.appendChild(hint);
+
+        const preview = document.createElement('div');
+        preview.className = 'fpmp-preview';
+        body.appendChild(preview);
+
+        // Preview realtime danh sách id nhận diện được, giúp user tự kiểm tra trước khi bấm Bắt đầu.
+        const updatePreview = () => {
+            const ids = parseIds(textarea.value);
+            preview.textContent = ids.length
+                ? `Đã nhận diện ${ids.length} payment item: ${ids.join(', ')}`
+                : '';
+        };
+        textarea.addEventListener('input', () => {
+            inputDraft.manualText = textarea.value;
+            updatePreview();
+        });
+        updatePreview();
+
+        return () => parseIds(textarea.value);
     }
 
     /**
@@ -1224,13 +1501,13 @@
         // Kết quả archive các dòng EmailAction (chỉ có khi job được nạp từ EmailAction).
         if (finished && job.replacements && job.replacements.length) {
             const results = job.archiveResults || {};
-            const archivedCount = Object.values(results).filter((r) => r.ok).length;
-            const failed = Object.entries(results).filter(([, r]) => !r.ok);
+            const archivedCount = Object.values(results).filter((r) => r.status === 'success').length;
+            const failed = Object.entries(results).filter(([, r]) => r.status === 'error');
             const archiveEl = document.createElement('div');
             archiveEl.className = 'fpmp-summary';
             archiveEl.textContent = job.archiveStarted
                 ? `EmailAction: đã archive ${archivedCount}/${job.replacements.length} dòng.`
-                    + failed.map(([id, r]) => ` [#${id}: ${r.message}]`).join('')
+                    + failed.map(([id, r]) => ` [Lỗi dòng #${id}: ${r.message}]`).join('')
                 : 'EmailAction: đang archive các dòng đã xử lý xong...';
             body.appendChild(archiveEl);
         }
@@ -1238,6 +1515,7 @@
         // Bảng chi tiết: mỗi dòng ứng với 1 payment item id, kèm link mở nhanh sang trang edit,
         // và 3 cột riêng cho 3 giai đoạn xử lý (Tag & Save / Paid / Post Check Done), mỗi cột hiển
         // thị badge trạng thái ('Skip'/'Success'/'Lỗi') kèm message cụ thể của giai đoạn đó.
+        const hasArchiveCol = !!(job.replacements && job.replacements.length);
         const table = document.createElement('table');
         table.className = 'fpmp-table';
         table.innerHTML = '<thead><tr>'
@@ -1245,6 +1523,7 @@
             + '<th>1. Tag & Save</th>'
             + '<th>2. Paid</th>'
             + '<th>3. Post Check Done</th>'
+            + (hasArchiveCol ? '<th>4. Archive (EmailAction)</th>' : '')
             + '</tr></thead>';
         const tbody = document.createElement('tbody');
 
@@ -1261,6 +1540,31 @@
                 msg.textContent = s.message;
                 td.appendChild(msg);
             }
+        };
+
+        // Ô cột Archive: mỗi dòng EmailAction chứa item này có 1 badge (chờ / đang archive /
+        // success / skip / lỗi). Chỉ 1 dòng -> chỉ badge; nhiều dòng -> thêm nhãn "#<id dòng>".
+        const archiveLabels = { pending: 'Chờ xử lý', processing: 'Đang archive', success: 'Success', skipped: 'Skip', error: 'Lỗi' };
+        const renderArchiveCell = (td, itemId) => {
+            const reps = (job.replacements || []).filter((r) => r.items.includes(itemId));
+            if (!reps.length) { td.textContent = '—'; return; }
+            reps.forEach((r) => {
+                const res = (job.archiveResults || {})[r.id];
+                const st = res ? res.status : (!finished ? 'pending' : 'processing');
+                const line = document.createElement('div');
+                if (reps.length > 1) line.appendChild(document.createTextNode(`#${r.id} `));
+                const badge = document.createElement('span');
+                badge.className = `fpmp-status fpmp-status--${st}`;
+                badge.textContent = archiveLabels[st] || st;
+                line.appendChild(badge);
+                if (res && res.message && st !== 'success') {
+                    const msg = document.createElement('div');
+                    msg.className = 'fpmp-stage-msg';
+                    msg.textContent = res.message;
+                    line.appendChild(msg);
+                }
+                td.appendChild(line);
+            });
         };
 
         // Dòng đang xử lý: item có status 'processing'; nếu chưa có (vừa reload sang trang item,
@@ -1286,6 +1590,12 @@
             const tdPostCheck = document.createElement('td');
             renderStageCell(tdPostCheck, entry.stages && entry.stages.postCheck);
             tr.appendChild(tdPostCheck);
+
+            if (hasArchiveCol) {
+                const tdArchive = document.createElement('td');
+                renderArchiveCell(tdArchive, entry.id);
+                tr.appendChild(tdArchive);
+            }
 
             tbody.appendChild(tr);
         });
