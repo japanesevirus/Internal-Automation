@@ -6,6 +6,7 @@
 // @author       Gemini AI
 // @match        https://finplan.saigontechnology.vn/*
 // @match        https://pop.saigontechnology.vn/*
+// @match        https://*.qbo.intuit.com/*
 // @grant        unsafeWindow
 // @run-at       document-start
 // ==/UserScript==
