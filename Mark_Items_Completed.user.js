@@ -932,7 +932,8 @@
         status: '',           // dòng trạng thái tải
         loading: false,       // đang gọi API EmailAction
         autoLoaded: false,    // đã tự tải (hoặc user đã bấm Tải) trong lần mở dialog này
-        autoChargeOnly: true,
+        // Checkbox "Auto-Charge Item only" riêng cho từng tab: EmailAction mặc định bỏ chọn, Nhập tay mặc định chọn.
+        autoChargeOnly: { ea: false, manual: true },
     });
     let inputDraft = newInputDraft();
     // true = mỗi lần render, tự cuộn bảng log tới dòng ĐANG XỬ LÝ (tr[data-current="1"]). Reset về
@@ -1261,8 +1262,8 @@
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = checkboxId;
-        checkbox.checked = inputDraft.autoChargeOnly;
-        checkbox.addEventListener('change', () => { inputDraft.autoChargeOnly = checkbox.checked; });
+        checkbox.checked = inputDraft.autoChargeOnly[inputDraft.tab];
+        checkbox.addEventListener('change', () => { inputDraft.autoChargeOnly[inputDraft.tab] = checkbox.checked; });
         const checkboxLabel = document.createElement('label');
         checkboxLabel.htmlFor = checkboxId;
         checkboxLabel.innerHTML = '<b>Auto-Charge Item only</b> — chỉ xử lý item đang có tag '
