@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Consolidate Payment Item with Bank Statement
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Cập nhật Equivalent Amount và chuyển tag "Waiting for bank statement" -> "Waiting for bank statement ► Checked" hàng loạt cho danh sách Payment Item
 // @author       Claude
 // @match        https://finplan.saigontechnology.vn/*
@@ -100,6 +100,31 @@
             },
         },
         {
+            id: 'foreign-equivalent',
+            label: '(<số tiền ngoại tệ>[ TIỀN TỆ]) #<payment item id> <Equivalent Amount>'
+                + ' — ví dụ: (57.04 USD) #46621 1,425,000 hoặc (57.04) #46621 1,425,000',
+            /**
+             * Một item + số tiền ngoại tệ riêng: ngoài Equivalent Amount, script còn so/sửa field
+             * Amount (ngoại tệ) của item. Dấu # trước payment item id là BẮT BUỘC. Phải đứng trước
+             * 'foreign-split' để dòng 1 khoản/1 item được xử lý theo định dạng này.
+             */
+            parse(line) {
+                const m = line.match(/^\(\s*([\d.,]+)\s*([A-Za-z]{3})?\s*\)\s*#(\d+)\s+([\d.,]+)\s*$/);
+                if (!m) return null;
+                const foreign = parseAmountNumber(m[1]);
+                const equivalent = Math.round(parseAmountNumber(m[4]));
+                if (!isFinite(foreign) || foreign <= 0) return { error: 'số tiền ngoại tệ phải là số > 0' };
+                if (!isFinite(equivalent) || equivalent <= 0) return { error: 'Equivalent Amount không hợp lệ' };
+                return {
+                    format: 'foreign-equivalent',
+                    id: m[3],
+                    foreignAmount: String(Math.round(foreign * 100) / 100),
+                    currency: m[2] ? m[2].toUpperCase() : null,
+                    equivalentAmount: String(equivalent),
+                };
+            },
+        },
+        {
             id: 'foreign-split',
             label: '(<ngoại tệ 1> + <ngoại tệ 2> ... <TIỀN TỆ>) #<id 1> #<id 2> ... <Equivalent Amount tổng>'
                 + ' — ví dụ: (35.18 + 70.37 USD) #46621 #46622 2,857,070',
@@ -175,6 +200,7 @@
     // Khai báo sau khi các hàm processXxx được định nghĩa (hoisting của function declaration).
     const FORMAT_PROCESSORS = {
         'equivalent-amount': processEquivalentAmountItem,
+        'foreign-equivalent': processEquivalentAmountItem,
     };
 
     // Các cột (giai đoạn) hiển thị trong bảng tiến trình, theo từng định dạng.
@@ -185,7 +211,24 @@
             { key: 'tag', label: '2. Tags' },
             { key: 'save', label: '3. Save' },
         ],
+        'foreign-equivalent': [
+            { key: 'foreign', label: '0. Amount ngoại tệ' },
+            { key: 'amount', label: '1. Equivalent Amount' },
+            { key: 'tag', label: '2. Tags' },
+            { key: 'save', label: '3. Save' },
+        ],
     };
+
+    /** Hợp (union) các cột giai đoạn của mọi định dạng có trong danh sách format, giữ thứ tự xuất hiện. */
+    function unionStages(formats) {
+        const out = [];
+        formats.forEach((f) => {
+            (FORMAT_STAGES[f] || []).forEach((s) => {
+                if (!out.some((o) => o.key === s.key)) out.push(s);
+            });
+        });
+        return out;
+    }
 
     /** Danh sách key giai đoạn của 1 định dạng (để khởi tạo entry.stages, đánh dấu skip hàng loạt...). */
     function stageKeysOf(format) {
@@ -213,6 +256,7 @@
         const invalidLines = [];
         const seen = new Set();
         const idToLineNos = new Map(); // id -> [số dòng 1-based đã xuất hiện]
+        const idToTasks = new Map();   // id -> [task của mọi lần xuất hiện]
 
         lines.forEach((rawLine, idx) => {
             const line = rawLine.trim();
@@ -240,6 +284,9 @@
                 const lineNos = idToLineNos.get(task.id) || [];
                 lineNos.push(idx + 1);
                 idToLineNos.set(task.id, lineNos);
+                const occ = idToTasks.get(task.id) || [];
+                occ.push(task);
+                idToTasks.set(task.id, occ);
 
                 if (seen.has(task.id)) return; // đã có task cho id này -> chỉ giữ lần đầu
                 seen.add(task.id);
@@ -248,11 +295,56 @@
         });
 
         const duplicateIds = [];
+        const mergeSuggestions = [];
         idToLineNos.forEach((lineNos, id) => {
-            if (lineNos.length > 1) duplicateIds.push({ id, lineNos });
+            if (lineNos.length < 2) return;
+            const occ = idToTasks.get(id) || [];
+            // Chỉ định dạng 'foreign-equivalent' (dòng của chính nó) mới được đề xuất gộp, không chặn.
+            if (occ.length && occ.every((t) => t.format === 'foreign-equivalent')) {
+                const currencies = Array.from(new Set(occ.map((t) => t.currency).filter(Boolean)));
+                if (currencies.length > 1) {
+                    duplicateIds.push({ id, lineNos });
+                    return;
+                }
+                const foreignSum = Math.round(occ.reduce((a, t) => a + parseAmountNumber(t.foreignAmount), 0) * 100) / 100;
+                const equivalentSum = occ.reduce((a, t) => a + parseAmountNumber(t.equivalentAmount), 0);
+                const currency = currencies[0] || null;
+                mergeSuggestions.push({
+                    id,
+                    lineNos,
+                    foreignAmount: String(foreignSum),
+                    equivalentAmount: String(equivalentSum),
+                    currency,
+                    mergedTask: {
+                        format: 'foreign-equivalent',
+                        id,
+                        foreignAmount: String(foreignSum),
+                        currency,
+                        equivalentAmount: String(equivalentSum),
+                    },
+                });
+            } else {
+                duplicateIds.push({ id, lineNos });
+            }
         });
 
-        return { tasks, invalidLines, duplicateIds };
+        return { tasks, invalidLines, duplicateIds, mergeSuggestions };
+    }
+
+    /** Dòng input chuẩn của 1 đề xuất gộp, ví dụ "(57.04 USD) #46621 2857070". */
+    function mergedLineText(s) {
+        return `(${s.foreignAmount}${s.currency ? ' ' + s.currency : ''}) #${s.id} ${s.equivalentAmount}`;
+    }
+
+    /** Áp các đề xuất gộp vào text: thay dòng đầu của id bằng dòng gộp, xoá các dòng trùng còn lại. */
+    function applyMerges(rawText, suggestions) {
+        const lines = (rawText || '').split(/\r?\n/);
+        const drop = new Set();
+        suggestions.forEach((s) => {
+            lines[s.lineNos[0] - 1] = mergedLineText(s);
+            s.lineNos.slice(1).forEach((n) => drop.add(n - 1));
+        });
+        return lines.filter((_, i) => !drop.has(i)).join('\n');
     }
 
     /* =========================================================================
@@ -438,6 +530,22 @@
      * @returns {{before: string, after: string}} giá trị trước & sau khi ghi (đọc lại từ DOM)
      */
     function setEquivalentAmount(input, value) {
+        return setInputValue(input, value);
+    }
+
+    /** Lấy input Amount (ngoại tệ, name="amount") trên form. */
+    function getForeignAmountInput() {
+        return document.querySelector('app-payment-item-form input[name="amount"]');
+    }
+
+    /** Mã tiền tệ hiển thị cạnh input Amount (div.icon, ví dụ "USD"); '' nếu không đọc được. */
+    function getForeignCurrency(input) {
+        const icon = input.parentElement && input.parentElement.querySelector('.icon');
+        return icon ? normalizeText(icon.textContent).toUpperCase() : '';
+    }
+
+    /** Ghi giá trị vào 1 input numericdecimal + bắn input/change/blur; trả về {before, after}. */
+    function setInputValue(input, value) {
         const before = input.value;
 
         input.focus();
@@ -513,6 +621,51 @@
 
         // Người dùng có thể đã bấm "Dừng lại" + "dừng ngay" ngay khi trang này vừa mở.
         if (isStopNow()) { bailStopNow(); return; }
+
+        // ================= GIAI ĐOẠN 0 (chỉ định dạng có ngoại tệ): so khớp / sửa Amount ================= //
+        if (typeof task.foreignAmount === 'string') {
+            let foreignOk = false;
+            try {
+                await utils.sleep(400);
+                if (isStopNow()) { bailStopNow(); return; }
+
+                await utils.waitForElement(['app-payment-item-form input[name="amount"]'], 25000);
+                const fInput = getForeignAmountInput();
+                if (!fInput) throw new Error('Không tìm thấy field Amount (ngoại tệ) trên form.');
+
+                const formCur = getForeignCurrency(fInput);
+                if (task.currency && formCur && task.currency !== formCur) {
+                    throw new Error(`Tiền tệ không khớp: input "${task.currency}" ≠ item "${formCur}". Không sửa.`);
+                }
+
+                const oldVal = fInput.value;
+                const oldNum = parseAmountNumber(oldVal);
+                const newNum = parseAmountNumber(task.foreignAmount);
+                if (isFinite(oldNum) && Math.abs(oldNum - newNum) < 0.005) {
+                    setStage('foreign', 'success', `Khớp, không cần sửa (${oldVal}${formCur ? ' ' + formCur : ''}).`);
+                } else {
+                    const { after } = setInputValue(fInput, task.foreignAmount);
+                    await utils.sleep(300);
+                    setStage('foreign', 'success', `Không khớp, đã sửa: "${oldVal}" → "${after}"${formCur ? ' ' + formCur : ''}.`);
+                }
+                foreignOk = true;
+            } catch (err) {
+                setStage('foreign', 'error', (err && err.message) || String(err));
+            }
+            persist();
+
+            if (!foreignOk) {
+                const why = 'Bỏ qua vì giai đoạn 0 (Amount ngoại tệ) bị lỗi.';
+                setStage('amount', 'skipped', why);
+                setStage('tag', 'skipped', why);
+                setStage('save', 'skipped', why);
+                entry.status = 'error';
+                persist();
+                advanceJob(job);
+                return;
+            }
+            if (isStopNow()) { bailStopNow(); return; }
+        }
 
         // ================= GIAI ĐOẠN 1: Ghi Equivalent Amount ================= //
         let amountOk = false;
@@ -1055,7 +1208,7 @@
         const textarea = document.createElement('textarea');
         textarea.className = 'fpcb-textarea';
         textarea.setAttribute('wrap', 'off'); // mỗi dòng logic = 1 dòng hiển thị -> số dòng khớp 1-1
-        textarea.placeholder = '#123456   1,234,567.00\n#234567\t2000000\n(35.18 + 70.37 USD) #46621 #46622 2,857,070';
+        textarea.placeholder = '#123456   1,234,567.00\n#234567\t2000000\n(35.18 + 70.37 USD) #46621 #46622 2,857,070\n(57.04 USD) #46623 1,425,000';
         editor.appendChild(textarea);
 
         body.appendChild(editor);
@@ -1082,13 +1235,33 @@
         body.appendChild(preview);
 
         const updatePreview = () => {
-            const { tasks, invalidLines, duplicateIds } = parseInput(textarea.value);
+            const { tasks, invalidLines, duplicateIds, mergeSuggestions } = parseInput(textarea.value);
             const parts = [];
             if (tasks.length) {
                 parts.push(`Đã nhận diện ${tasks.length} item:`);
-                parts.push(tasks.map((t) => `#${t.id} → ${t.equivalentAmount}${t.note ? ` (${t.note})` : ''}`).join(', '));
+                parts.push(tasks.map((t) => `#${t.id} → ${t.foreignAmount ? `${t.foreignAmount}${t.currency ? ' ' + t.currency : ''} / ` : ''}${t.equivalentAmount}${t.note ? ` (${t.note})` : ''}`).join(', '));
             }
             preview.textContent = parts.join(' ');
+
+            // Đề xuất (không chặn): item nhập nhiều dòng ở định dạng ngoại tệ -> gộp thành 1 dòng.
+            if (mergeSuggestions.length) {
+                const box = document.createElement('div');
+                box.className = 'fpcb-preview__warn';
+                box.textContent = 'Đề xuất gộp các dòng trùng item (cộng dồn ngoại tệ & Equivalent):\n'
+                    + mergeSuggestions.map((s) => `  #${s.id}: dòng ${s.lineNos.join(', ')} → ${mergedLineText(s)}`).join('\n');
+                const mergeBtn = document.createElement('button');
+                mergeBtn.type = 'button';
+                mergeBtn.className = 'fpcb-btn fpcb-btn--default';
+                mergeBtn.textContent = 'Gộp';
+                mergeBtn.style.cssText = 'display:block;margin-top:4px;padding:4px 12px;';
+                mergeBtn.addEventListener('click', () => {
+                    textarea.value = applyMerges(textarea.value, mergeSuggestions);
+                    syncGutter();
+                    updatePreview();
+                });
+                box.appendChild(mergeBtn);
+                preview.appendChild(box);
+            }
 
             // Lỗi chặn: cùng một payment item id xuất hiện ở nhiều dòng.
             if (duplicateIds.length) {
@@ -1139,7 +1312,14 @@
                 && !confirm(`Có ${result.invalidLines.length} dòng không hợp lệ sẽ bị bỏ qua. Tiếp tục với ${result.tasks.length} item hợp lệ?`)) {
                 return;
             }
-            startJob(result.tasks);
+            let tasksToRun = result.tasks;
+            if (result.mergeSuggestions.length) {
+                if (!confirm(`Có ${result.mergeSuggestions.length} item nhập trùng nhiều dòng (định dạng ngoại tệ). Mỗi item chỉ xử lý 1 lần nên cần gộp (cộng dồn). Tự động gộp rồi chạy?`)) return;
+                const byId = {};
+                result.mergeSuggestions.forEach((s) => { byId[s.id] = s.mergedTask; });
+                tasksToRun = tasksToRun.map((t) => byId[t.id] || t);
+            }
+            startJob(tasksToRun);
         });
         footer.appendChild(startBtn);
     }
@@ -1164,9 +1344,8 @@
         }
         body.appendChild(summary);
 
-        // Cột giai đoạn: lấy theo định dạng của item đầu tiên (hiện mọi item cùng một định dạng).
-        const format = (job.log[0] && job.log[0].format) || LINE_FORMATS[0].id;
-        const stages = FORMAT_STAGES[format] || [];
+        // Cột giai đoạn: hợp các giai đoạn của mọi định dạng có trong job (job có thể trộn nhiều định dạng).
+        const stages = unionStages(job.log.map((e) => e.format));
 
         const table = document.createElement('table');
         table.className = 'fpcb-table';
@@ -1201,9 +1380,13 @@
             tdId.innerHTML = `<a href="${getExpectedUrl(entry.id)}" target="_blank">#${entry.id}</a>`;
             tr.appendChild(tdId);
 
-            (FORMAT_STAGES[entry.format] || stages).forEach((s) => {
+            stages.forEach((s) => {
                 const td = document.createElement('td');
-                renderStageCell(td, entry.stages && entry.stages[s.key]);
+                if (entry.stages && entry.stages[s.key]) {
+                    renderStageCell(td, entry.stages[s.key]);
+                } else {
+                    td.textContent = '—';
+                }
                 tr.appendChild(td);
             });
 
