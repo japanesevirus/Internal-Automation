@@ -162,10 +162,12 @@
 
                 const amounts = splitEquivalentAmount(total, foreign);
                 return ids.map((id, i) => ({
-                    format: 'equivalent-amount',
+                    // Dùng 'foreign-equivalent' để mỗi item cũng được so khớp/sửa Amount ngoại tệ.
+                    format: 'foreign-equivalent',
                     id,
+                    foreignAmount: String(Math.round(foreign[i] * 100) / 100),
+                    currency,
                     equivalentAmount: String(amounts[i]),
-                    note: `${foreignRaw[i]} ${currency}`,
                 }));
             },
         },
